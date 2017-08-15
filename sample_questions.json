@@ -1,0 +1,33 @@
+{
+    "instructions": "Please do not, in any occasssion, cheat in this examination.",
+    "total": 4,
+    "instructor": "Joshua Ogunyinka",
+    "items": [ {
+        "question": "What is the capital city of Osun state?",
+        "options": {
+            "arity": 4,
+            "items": [ "Oshogbo", "Ikirun", "Ado-Ekiti", "Ikeja" ]
+        }
+    },
+    {
+        "question": "What is name of the current Nigerian president?",
+        "options": {
+            "arity": 3,
+            "items": [ "Professor Yemi Osinabjo", "Gen. Olusegun Obasanjo", "Gen. Muhammed Buhari" ]
+        }
+    },
+    {
+        "question": "What animal is depicted in the image below?",
+        "options": {
+            "arity": 4,
+            "items": [ "Gorilla", "Monkey", "Chimpazee", "Kangaroo" ]
+        },
+        "image": "https://google.com/image?url=2324893few"
+    },
+    {
+        "question": "What is the capital city of Rivers state?",
+        "options": {
+            "items": [ "Oshogbo", "Portharcourt", "Calabar", "Asaba" ]
+        }
+    } ]
+}
