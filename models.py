@@ -24,8 +24,7 @@ class User(db.Model, UserMixin):
     password_hash = db.Column(db.String(128), index=True, nullable=True)
     matric_staff_number = db.Column(db.String(64), nullable=False, unique=True)
     role = db.Column(db.Integer, nullable=False)
-    repo_name = db.Column(db.String(128), nullable=False, unique=True)
-    courses = db.relationship('Course', backref='user')
+    repositories = db.relationship( 'Repository', backref='user_repo' )
 
     ADMINISTRATOR = 4
 
@@ -44,6 +43,15 @@ class User(db.Model, UserMixin):
         return '<User %r>' % self.matric_staff_number
 
 
+class Repository( db.Model ):
+    __tablename__ = 'repositories'
+    
+    id = db.Column( db.Integer, primary_key = True )
+    repo_name = repo_name = db.Column(db.String(128), nullable=False, unique=True)
+    courses = db.relationship('Course', backref='repo')
+    user_id = db.db.Column(db.Integer, db.ForeignKey('users.id'))
+
+
 class Course(db.Model):
     __tablename__ = 'courses'
 
@@ -55,7 +63,7 @@ class Course(db.Model):
     filename = db.Column(db.Text, nullable=False)
     date_to_be_held = db.Column(db.Date, nullable=False)
     duration_in_minutes = db.Column(db.Integer, nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    repo_id = db.Column(db.Integer, db.ForeignKey('repositories.id'))
 
     def __repr__(self):
         return "<Course name: %r, code: %r" % (self.name, self.code)

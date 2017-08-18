@@ -7,7 +7,7 @@
 from flask import Blueprint, jsonify, request, redirect, url_for, send_from_directory, safe_join
 from werkzeug.exceptions import BadRequest
 from datetime import date
-from models import db, User, Course, ExamTaken, Department
+from models import db, User, Course, ExamTaken, Department, Repository
 from resources import urlify, get_data, respond_back, jsonify_courses, administrator_required
 from resources import ERROR, SUCCESS, UPLOAD_DIR
 from random import randint
@@ -25,13 +25,16 @@ def invalid_url_error():
 @main.route('/<username>/<repo>.silt')
 def initial_request_route(username, repo):
     local_usr = db.session.query(User).filter_by(username=username).first()
-    if local_usr is None or local_usr.repo_name != repo or local_usr.role is not User.ADMINISTRATOR:
+    if local_usr is None or local_usr.role is not User.ADMINISTRATOR:
         return respond_back(ERROR, 'User does not exists or repository name is invalid')
-    result = jsonify({'status': SUCCESS, 'url': urlify(local_usr, 60 * 60 * 2), 'detail': 'Success'})
-    print result
-    return result
+    repositories = local_usr.repositories
+    for repository in repositories:
+        if repository.repo_name == repo:
+            return jsonify({'status': SUCCESS, 'url': urlify(local_usr, repository, 60 * 60 * 2), 'detail': 'Success'})
+    return respond_back( ERROR, 'Invalid repository name' )
 
 
+# to-do: Send meaningful paths back to user.
 @main.route('/')
 def main_route():
     return jsonify({'status': SUCCESS, 'detail': 'OK'})
@@ -62,7 +65,8 @@ def raw_route(token):
     user = db.session.query(User).filter_by(matric_staff_number=data.get('staff_number', None)).first()
     if user is None:
         return invalid_url_error()
-    if user.repo_name != data.get('repo_name', None):
+    repository = db.session.query( Repository ).filter( user_id == user.id, repo_name = data.get('repo_name')).first()
+    if repository is None:
         return invalid_url_error()
 
     date_range_from = date_from_string(request.args.get('date_from', None))
@@ -74,8 +78,7 @@ def raw_route(token):
 
     list_of_courses = db.session.query(Course).filter(Course.date_to_be_held >= date_range_from,
                                                       Course.date_to_be_held <= date_range_to,
-                                                      Course.user_id == user.id).all()
-
+                                                      Course.repo_id == repository.id ).all()
     print list_of_courses
     return jsonify_courses(list_of_courses, date_range_from, date_range_to)
 
@@ -172,6 +175,29 @@ def add_user_route():
         return respond_back(ERROR, 'Bad request')
     except:
         return respond_back(ERROR, 'Unable to add user, check the data and try again')
+
+
+@main.route( '/add_repository', methods = 'POST' )
+@login_required
+@administrator_required
+def add_repository_route():
+    try:
+        data = request.get_json()
+        if data is None:
+            return respond_back(ERROR, 'Invalid data')
+        repository_name = data.get( 'repository_name' )
+        if repository_name is None or len( repository_name ) == 0:
+            return respond_back(ERROR, 'Invalid repository name supplied')
+        if db.session.query(Repository).filter_by(repo_name = repository_name).first() is not None:
+            return respond_back( ERROR, 'Repository with that name already exist in your account')
+        repository = Repository( repo_name = repository_name )
+        db.session.add( repository )
+        db.session.commit()
+        return respond_back(SUCCESS,'Successful')
+    except BadRequest:
+        return respond_back(ERROR, 'Bad request')
+    except:
+        return respond_back(ERROR, 'Unable to add repository, check the data and try again')
 
 
 @main_route('/admin_add_course', methods=['POST'])

@@ -14,9 +14,9 @@ ERROR, SUCCESS = (0, 1)
 UPLOAD_DIR = os.environ.get('UPLOAD_DIR')
 ADMINISTRATOR = 4
 
-def urlify(local_user, expiry):
+def urlify(local_user, repository, expiry):
     s = TJsonSerializer(os.environ.get('SECRET_KEY'), expires_in=expiry)
-    token = s.dumps({'repo_name': local_user.repo_name, 'staff_number': local_user.matric_staff_number})
+    token = s.dumps({'repo_name': repository.repo_name, 'staff_number': local_user.matric_staff_number})
     return url_for('main.raw_route', token=token, expires=expiry, _external=True)
 
 
