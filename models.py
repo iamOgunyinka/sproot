@@ -47,9 +47,9 @@ class Repository( db.Model ):
     __tablename__ = 'repositories'
     
     id = db.Column( db.Integer, primary_key = True )
-    repo_name = repo_name = db.Column(db.String(128), nullable=False, unique=True)
+    repo_name = db.Column(db.String(128), nullable=False, unique=True)
     courses = db.relationship('Course', backref='repo')
-    user_id = db.db.Column(db.Integer, db.ForeignKey('users.id'))
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
 
 
 class Course(db.Model):

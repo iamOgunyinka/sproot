@@ -9,7 +9,7 @@ from flask import Blueprint
 from flask import Flask
 from flask_mail import Mail
 from flask_moment import Moment
-from models import db, User, Department, Course, Student
+from models import db, User, Department, Course, Repository
 import os
 
 

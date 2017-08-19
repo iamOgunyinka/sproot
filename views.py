@@ -25,7 +25,10 @@ def invalid_url_error():
 @main.route('/<username>/<repo>.silt')
 def initial_request_route(username, repo):
     local_usr = db.session.query(User).filter_by(username=username).first()
-    if local_usr is None or local_usr.role is not User.ADMINISTRATOR:
+    print local_usr
+    print local_usr.role
+    print User.ADMINISTRATOR
+    if local_usr is None or local_usr.role != User.ADMINISTRATOR:
         return respond_back(ERROR, 'User does not exists or repository name is invalid')
     repositories = local_usr.repositories
     for repository in repositories:
@@ -65,7 +68,7 @@ def raw_route(token):
     user = db.session.query(User).filter_by(matric_staff_number=data.get('staff_number', None)).first()
     if user is None:
         return invalid_url_error()
-    repository = db.session.query( Repository ).filter( user_id == user.id, repo_name = data.get('repo_name')).first()
+    repository = db.session.query( Repository ).filter_by( user_id = user.id, repo_name = data.get('repo_name')).first()
     if repository is None:
         return invalid_url_error()
 
@@ -106,7 +109,7 @@ def get_data_route():
     course = db.session.query(Course).filter_by(id=file_id).first()
     if course is None:
         return invalid_url_error()
-    return send_from_directory(directory=UPLOAD_DIR, filename=course.question_location)
+    return send_from_directory(directory=UPLOAD_DIR, filename=course.filename)
 
 
 @auth.route('/post_data', methods=['POST'])
@@ -153,6 +156,7 @@ def login_route():
 
 
 @main.route('/add_admin', methods=['POST'])
+@administrator_required
 def add_user_route():
     try:
         data = request.get_json()
@@ -166,18 +170,22 @@ def add_user_route():
         old_user = User.query.filter_by(username=username).first()
         if old_user is not None:
             return respond_back(ERROR, 'User already exist')
+            
+        repository = Repository( repo_name = repository_name )
         new_user = User(username=username, password=password, matric_staff_number=staff_number,
-                        role=User.ADMINISTRATOR, repo_name=repository_name, courses=[])
+                        role=User.ADMINISTRATOR, repositories=[repository])
+        db.session.add(repository)
         db.session.add(new_user)
         db.session.commit()
         return respond_back(SUCCESS, 'User created successfully')
     except BadRequest:
         return respond_back(ERROR, 'Bad request')
-    except:
+    except Exception as e:
+        print e
         return respond_back(ERROR, 'Unable to add user, check the data and try again')
 
 
-@main.route( '/add_repository', methods = 'POST' )
+@main.route( '/add_repository', methods = ['POST'] )
 @login_required
 @administrator_required
 def add_repository_route():
@@ -188,10 +196,15 @@ def add_repository_route():
         repository_name = data.get( 'repository_name' )
         if repository_name is None or len( repository_name ) == 0:
             return respond_back(ERROR, 'Invalid repository name supplied')
-        if db.session.query(Repository).filter_by(repo_name = repository_name).first() is not None:
-            return respond_back( ERROR, 'Repository with that name already exist in your account')
+        user_repositories = current_user.repositories
+        for repo in user_repositories:
+            if repo.repo_name == repository_name:
+                return respond_back( ERROR, 'Repository with that name already exist in your account')
         repository = Repository( repo_name = repository_name )
+        current_user.repositories.append( repository )
+        
         db.session.add( repository )
+        db.session.add( current_user )
         db.session.commit()
         return respond_back(SUCCESS,'Successful')
     except BadRequest:
@@ -200,7 +213,7 @@ def add_repository_route():
         return respond_back(ERROR, 'Unable to add repository, check the data and try again')
 
 
-@main_route('/admin_add_course', methods=['POST'])
+@main.route('/admin_add_course', methods=['POST'])
 @login_required
 @administrator_required
 def admin_add_course_route():
@@ -216,13 +229,27 @@ def admin_add_course_route():
         question_location = data.get('question')
         # Array of name:faculty objects
         departments = data.get('departments')
-
+        repository_name = data.get( 'repository_name' )
+        
         if course_code is None or course_name is None or personnel_in_charge is None or \
                         hearing_date is None or duration_in_minutes is None or departments is None or \
                         question_location is None:
             return respond_back(ERROR, 'Missing arguments')
-        if db.session.query(Course).filter_by(code=course_code).first() is not None:
-            return respond_back(ERROR, 'Course with the same course code already exist')
+            
+        repositories = current_user.repositories
+        repository_to_use = None
+        for repo in repositories:
+            print repo.repo_name
+            if repo.repo_name == repository_name:
+                repository_to_use = repo
+                break
+        
+        if repository_to_use is None:
+            return respond_back(ERROR, 'Repository does not exist')
+        for course in repository_to_use.courses:
+            if course_code == course.code:
+                return respond_back(ERROR, 'Course with that code already exist')
+        
         department_list = []
         try:
             for i in departments:
@@ -231,7 +258,7 @@ def admin_add_course_route():
             return respond_back(ERROR, 'Expects a valid data in the departments')
         filename = course_code + '.json'
         try:
-            question_file = loads( question_location )
+            question_file = loads( str(question_location) )
             full_path = safe_join( UPLOAD_DIR, filename )
             new_file = open(full_path,mode='w')
             new_file.write(question_file)
@@ -241,7 +268,12 @@ def admin_add_course_route():
         course = Course(name=course_name, code=course_code, lecturer_in_charge=personnel_in_charge,
                         date_to_be_held=date_from_string(hearing_date), duration_in_minutes=int(duration_in_minutes),
                         departments=department_list, filename =filename)
+        repository_to_use.append( course )
+        
         db.session.add(course)
+        db.session.add(repository_to_use)
+        db.session.add(current_user)
+        
         db.session.commit()
         return respond_back(SUCCESS, 'New course added successfully')
     except BadRequest:

@@ -52,7 +52,7 @@ def jsonify_courses(list_of_courses, date_from, date_to):
         my_list.append(
             {'paper_name': course.name, 'paper_code': course.code.upper(), 'duration': course.duration_in_minutes,
              'departments': jsonify_departments(course.departments), 'instructor': course.lecturer_in_charge,
-             'url': url_for('main.get_paper_route', url=coursify(course.id, course.question_location),
+             'url': url_for('main.get_paper_route', url=coursify(course.id, course.filename),
                             _external=True)})
     return jsonify({'status': SUCCESS, 'exams': my_list, 'from': str(date_from),
                     'to': str(date_to), 'reply_to': url_for('auth.post_data_route', _external=True),
