@@ -46,7 +46,7 @@ def jsonify_departments(departments):
     return list_of_department
 
 
-def jsonify_courses(list_of_courses, date_from, date_to):
+def list_courses_data(list_of_courses):
     my_list = []
     for course in list_of_courses:
         my_list.append(
@@ -54,7 +54,12 @@ def jsonify_courses(list_of_courses, date_from, date_to):
              'departments': jsonify_departments(course.departments), 'instructor': course.lecturer_in_charge,
              'url': url_for('main.get_paper_route', url=coursify(course.id, course.filename),
                             _external=True)})
-    return jsonify({'status': SUCCESS, 'exams': my_list, 'from': str(date_from),
+    return my_list
+
+
+def jsonify_courses(list_of_courses, date_from, date_to):
+    courses = list_courses_data(list_of_courses)
+    return jsonify({'status': SUCCESS, 'exams': courses, 'from': str(date_from),
                     'to': str(date_to), 'reply_to': url_for('auth.post_data_route', _external=True),
                     'login_through': url_for('main.login_route', _external=True)})
 

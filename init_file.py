@@ -4,7 +4,6 @@
 #  Copyright 2017 Joshua <ogunyinkajoshua@gmail.com>
 #  
 
-from flask_restful import Resource
 from flask import Blueprint
 from flask import Flask
 from flask_mail import Mail
@@ -32,7 +31,7 @@ def create_app():
     login_manager.init_app( app )
     
     from views import main, auth
-    app.register_blueprint( main, url_prefix = '/web' )
+    app.register_blueprint( main )
     app.register_blueprint( auth, url_prefix = '/auth' )
     
     return app

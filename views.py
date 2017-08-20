@@ -9,10 +9,10 @@ from werkzeug.exceptions import BadRequest
 from datetime import date
 from models import db, User, Course, ExamTaken, Department, Repository
 from resources import urlify, get_data, respond_back, jsonify_courses, administrator_required
-from resources import ERROR, SUCCESS, UPLOAD_DIR
+from resources import ERROR, SUCCESS, UPLOAD_DIR, list_courses_data
 from random import randint
 from flask_login import login_required, login_user, current_user
-from json import loads
+
 
 main = Blueprint('main', __name__)
 auth = Blueprint('auth', __name__)
@@ -25,9 +25,6 @@ def invalid_url_error():
 @main.route('/<username>/<repo>.silt')
 def initial_request_route(username, repo):
     local_usr = db.session.query(User).filter_by(username=username).first()
-    print local_usr
-    print local_usr.role
-    print User.ADMINISTRATOR
     if local_usr is None or local_usr.role != User.ADMINISTRATOR:
         return respond_back(ERROR, 'User does not exists or repository name is invalid')
     repositories = local_usr.repositories
@@ -37,10 +34,17 @@ def initial_request_route(username, repo):
     return respond_back( ERROR, 'Invalid repository name' )
 
 
-# to-do: Send meaningful paths back to user.
 @main.route('/')
 def main_route():
-    return jsonify({'status': SUCCESS, 'detail': 'OK'})
+    endpoints = {
+        'login_to': url_for( 'main.login_route', _external=True ),
+        'add_admin': url_for( 'auth.add_user_route', _external=True ),
+        'add_repository': url_for( 'auth.add_repository_route', _external=True),
+        'add_course': url_for( 'auth.admin_add_course_route', _external=True),
+        'get_repositories': url_for( 'auth.get_repositories_route', _external=True),
+        'get_courses': url_for( 'auth.get_courses_route', _external=True)
+    }
+    return jsonify( {'status': SUCCESS, 'endpoints': endpoints})
 
 
 def date_from_string(text):
@@ -86,9 +90,16 @@ def raw_route(token):
     return jsonify_courses(list_of_courses, date_range_from, date_range_to)
 
 
-@main.errorhandler(404)
+@main.app_errorhandler(404)
 def error_404(e):
+    print e
     return invalid_url_error()
+
+
+@main.app_errorhandler(500)
+def interval_server_error(e):
+    print e
+    return respond_back(ERROR,'An internal server error occured')
 
 
 @main.route('/get_paper')
@@ -155,7 +166,8 @@ def login_route():
         return respond_back(ERROR, 'Invalid login request received.')
 
 
-@main.route('/add_admin', methods=['POST'])
+@auth.route('/add_admin', methods=['POST'])
+@login_required
 @administrator_required
 def add_user_route():
     try:
@@ -178,14 +190,15 @@ def add_user_route():
         db.session.add(new_user)
         db.session.commit()
         return respond_back(SUCCESS, 'User created successfully')
-    except BadRequest:
+    except BadRequest as b:
+        print b
         return respond_back(ERROR, 'Bad request')
     except Exception as e:
         print e
         return respond_back(ERROR, 'Unable to add user, check the data and try again')
 
 
-@main.route( '/add_repository', methods = ['POST'] )
+@auth.route( '/add_repository', methods = ['POST'] )
 @login_required
 @administrator_required
 def add_repository_route():
@@ -213,7 +226,7 @@ def add_repository_route():
         return respond_back(ERROR, 'Unable to add repository, check the data and try again')
 
 
-@main.route('/admin_add_course', methods=['POST'])
+@auth.route('/admin_add_course', methods=['POST'])
 @login_required
 @administrator_required
 def admin_add_course_route():
@@ -239,7 +252,6 @@ def admin_add_course_route():
         repositories = current_user.repositories
         repository_to_use = None
         for repo in repositories:
-            print repo.repo_name
             if repo.repo_name == repository_name:
                 repository_to_use = repo
                 break
@@ -256,19 +268,22 @@ def admin_add_course_route():
                 department_list.append(Department(name=i.get('name'), faculty=i.get('faculty')))
         except AttributeError:
             return respond_back(ERROR, 'Expects a valid data in the departments')
-        filename = course_code + '.json'
+
+        filename = current_user.username + '_' + repository_to_use.repo_name + '_' \
+                   + course_code.replace( ' ', '_' ) + '.json'
         try:
-            question_file = loads( str(question_location) )
             full_path = safe_join( UPLOAD_DIR, filename )
             new_file = open(full_path,mode='w')
-            new_file.write(question_file)
+            if type( question_location ) != dict:
+                raise ValueError("")
+            new_file.write(str(question_location))
             new_file.close()
         except ValueError:
             return respond_back(ERROR,'Invalid JSON Document for question' )
         course = Course(name=course_name, code=course_code, lecturer_in_charge=personnel_in_charge,
                         date_to_be_held=date_from_string(hearing_date), duration_in_minutes=int(duration_in_minutes),
                         departments=department_list, filename =filename)
-        repository_to_use.append( course )
+        repository_to_use.courses.append( course )
         
         db.session.add(course)
         db.session.add(repository_to_use)
@@ -276,6 +291,33 @@ def admin_add_course_route():
         
         db.session.commit()
         return respond_back(SUCCESS, 'New course added successfully')
+    except BadRequest:
+        return respond_back(ERROR, 'Bad request')
+    except Exception:
+        return respond_back(ERROR, 'Could not add the course')
+
+
+@auth.route( '/get_repositories' )
+@login_required
+@administrator_required
+def get_repositories_route():
+    repositories = [ { 'name': repository.repo_name, \
+        'courses': [ course.name for course in repository.courses ] } for repository in current_user.repositories]
+    return jsonify({'status': 1, 'repositories': repositories, 'detail': 'Successful' } )
+
+
+@auth.route('/get_courses_from_repo' )
+@login_required
+@administrator_required
+def get_courses_route():
+    try:
+        repository_name = request.args.get('repository')
+        if repository_name is None:
+            return respond_back(ERROR,'Invalid repository name')
+        repository = db.session.query(Repository).filter_by(user_id=current_user.id, repo_name=repository_name).first()
+        if repository is None:
+            return respond_back(ERROR,'Nothing found')
+        return jsonify({'status':SUCCESS, 'courses': list_courses_data(repository.courses)})
     except BadRequest:
         return respond_back(ERROR, 'Bad request')
 
