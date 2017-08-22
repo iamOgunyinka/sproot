@@ -16,8 +16,8 @@ def before_first_request():
     db.configure_mappers()
     db.create_all()
 
-    cs = Department(name='Computer Science', faculty='CIS')
-    mass_com = Department(name='Mass Communication', faculty='CIS')
+    cs = Department(name='Computer Science')
+    mass_com = Department(name='Mass Communication' )
 
     cpp = Course(name='C++', code='pdc709', lecturer_in_charge='Balogun, Mr.',
                  filename='sample_questions.json', date_to_be_held=date.today(),

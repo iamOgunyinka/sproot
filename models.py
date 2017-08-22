@@ -21,13 +21,14 @@ class User(db.Model, UserMixin):
 
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(128), unique=True, nullable=False, index=True)
+    matric_staff_number = db.Column(db.String(128), nullable=False, unique=True, index=True)
     password_hash = db.Column(db.String(128), index=True, nullable=True)
-    matric_staff_number = db.Column(db.String(64), nullable=False, unique=True)
     role = db.Column(db.Integer, nullable=False)
     repositories = db.relationship( 'Repository', backref='user_repo' )
 
-    ADMINISTRATOR = 4
-
+    ADMINISTRATOR = 0x4
+    NORMAL_USER = 0x2
+    
     @property
     def password(self):
         raise AttributeError('Cannot get plain password')
@@ -50,6 +51,9 @@ class Repository( db.Model ):
     repo_name = db.Column(db.String(128), nullable=False, unique=False)
     courses = db.relationship('Course', backref='repo')
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    
+    def __repr__(self):
+        print '<Repository {name}, {id}>'.format(name=self.repo_name,id=self.id)
 
 
 class Course(db.Model):
@@ -73,7 +77,6 @@ class Department(db.Model):
     __tablename__ = 'departments'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(128), unique=False, nullable=False)
-    faculty = db.Column(db.String(128), unique=False, nullable=False)
     course_id = db.Column(db.Integer, db.ForeignKey('courses.id'))
 
 

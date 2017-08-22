@@ -38,7 +38,8 @@ def initial_request_route(username, repo):
 def main_route():
     endpoints = {
         'login_to': url_for( 'main.login_route', _external=True ),
-        'add_admin': url_for( 'auth.add_user_route', _external=True ),
+        'add_user': url_for( 'auth.add_user_route', _external=True ),
+        'add_admin': url_for( 'auth.add_admin_route', _external=True ),
         'add_repository': url_for( 'auth.add_repository_route', _external=True),
         'add_course': url_for( 'auth.admin_add_course_route', _external=True),
         'get_repositories': url_for( 'auth.get_repositories_route', _external=True),
@@ -169,7 +170,7 @@ def login_route():
 @auth.route('/add_admin', methods=['POST'])
 @login_required
 @administrator_required
-def add_user_route():
+def add_admin_route():
     try:
         data = request.get_json()
         username = data.get('username')
@@ -196,6 +197,32 @@ def add_user_route():
     except Exception as e:
         print e
         return respond_back(ERROR, 'Unable to add user, check the data and try again')
+
+
+@auth.route( '/add_user', methods=['POST'] )
+@login_required
+@administrator_required
+def add_user_route():
+    try:
+        data = request.get_json()
+        username = data.get('username')
+        password = data.get('password')
+        if username is None or password is None:
+            return respond_back(SUCCESS, 'Missing arguments')
+        user = User.query.filter_by(username=username).first()
+        if user is not None:
+            return respond_back(ERROR, 'Username already exist')
+        user=User(username=username, password=password,matric_staff_number=username,
+                  role=User.NORMAL_USER)
+        db.session.add(user)
+        db.session.commit()
+        return respond_back(SUCCESS,'User has been successfully added')
+    except BadRequest as b:
+        print b
+        return respond_back(ERROR, str(b))
+    except Exception as e:
+        print e
+        return respond_back(ERROR, str(e))
 
 
 @auth.route( '/add_repository', methods = ['POST'] )
@@ -264,8 +291,8 @@ def admin_add_course_route():
         
         department_list = []
         try:
-            for i in departments:
-                department_list.append(Department(name=i.get('name'), faculty=i.get('faculty')))
+            for department_name in departments:
+                department_list.append(Department( name = department_name ))
         except AttributeError:
             return respond_back(ERROR, 'Expects a valid data in the departments')
 
@@ -303,6 +330,7 @@ def admin_add_course_route():
 def get_repositories_route():
     repositories = [ { 'name': repository.repo_name, \
         'courses': [ course.name for course in repository.courses ] } for repository in current_user.repositories]
+    print repositories
     return jsonify({'status': 1, 'repositories': repositories, 'detail': 'Successful' } )
 
 
