@@ -53,7 +53,7 @@ class Repository( db.Model ):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     
     def __repr__(self):
-        print '<Repository {name}, {id}>'.format(name=self.repo_name,id=self.id)
+        return '<Repository {name}, {id}>'.format(name=self.repo_name,id=self.id)
 
 
 class Course(db.Model):
@@ -66,9 +66,17 @@ class Course(db.Model):
     departments = db.relationship('Department', backref='course')
     filename = db.Column(db.Text, nullable=False)
     date_to_be_held = db.Column(db.Date, nullable=False)
+    expires_on = db.Column( db.Date, nullable = True )
     duration_in_minutes = db.Column(db.Integer, nullable=False)
+    randomize_questions = db.Column( db.Boolean, nullable = False )
+    answers_approach = db.Column( db.SmallInteger, nullable = False )
+    
     repo_id = db.Column(db.Integer, db.ForeignKey('repositories.id'))
-
+    
+    TRADITIONAL_ANSWER_APPROACH = 0x1
+    MODERN_ANSWER_APPROACH = 0x2
+    HYBRID_ANSWER_APPROACH = 0X4
+    
     def __repr__(self):
         return "<Course name: %r, code: %r" % (self.name, self.code)
 

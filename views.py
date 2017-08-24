@@ -87,19 +87,16 @@ def raw_route(token):
     list_of_courses = db.session.query(Course).filter(Course.date_to_be_held >= date_range_from,
                                                       Course.date_to_be_held <= date_range_to,
                                                       Course.repo_id == repository.id ).all()
-    print list_of_courses
     return jsonify_courses(list_of_courses, date_range_from, date_range_to)
 
 
 @main.app_errorhandler(404)
 def error_404(e):
-    print e
     return invalid_url_error()
 
 
 @main.app_errorhandler(500)
 def interval_server_error(e):
-    print e
     return respond_back(ERROR,'An internal server error occured')
 
 
@@ -136,7 +133,6 @@ def post_data_route():
             return respond_back(ERROR, 'One of the primary arguments are missing')
         course_already_taken = db.session.query(ExamTaken).filter_by(matric_number=matriculation_number,
                                                                      course_code=course_code).first()
-        print course_already_taken
         if course_already_taken is not None:
             return respond_back(ERROR, 'You have already taken this examination')
         exam_taken = ExamTaken(matric_number=matriculation_number, course_code=course_code,
@@ -192,10 +188,8 @@ def add_admin_route():
         db.session.commit()
         return respond_back(SUCCESS, 'User created successfully')
     except BadRequest as b:
-        print b
         return respond_back(ERROR, 'Bad request')
     except Exception as e:
-        print e
         return respond_back(ERROR, 'Unable to add user, check the data and try again')
 
 
@@ -218,10 +212,8 @@ def add_user_route():
         db.session.commit()
         return respond_back(SUCCESS,'User has been successfully added')
     except BadRequest as b:
-        print b
         return respond_back(ERROR, str(b))
     except Exception as e:
-        print e
         return respond_back(ERROR, str(e))
 
 
@@ -261,21 +253,26 @@ def admin_add_course_route():
         data = request.get_json()
         if data is None:
             return respond_back(ERROR, 'Invalid data')
+        
         course_name = data.get('name')
         course_code = data.get('course_code')
         personnel_in_charge = data.get('administrator_name')
         hearing_date = data.get('date_to_be_held')
         duration_in_minutes = data.get('duration')
         question_location = data.get('question')
+        approach = data.get( 'approach' )
+        randomize_question = data.get( 'randomize' )
+        expires = data.get( 'expires_on' )
+        
         # Array of name:faculty objects
         departments = data.get('departments')
         repository_name = data.get( 'repository_name' )
         
         if course_code is None or course_name is None or personnel_in_charge is None or \
                         hearing_date is None or duration_in_minutes is None or departments is None or \
-                        question_location is None:
+                        question_location is None or randomize_question is None or approach is None:
             return respond_back(ERROR, 'Missing arguments')
-            
+        
         repositories = current_user.repositories
         repository_to_use = None
         for repo in repositories:
@@ -295,7 +292,7 @@ def admin_add_course_route():
                 department_list.append(Department( name = department_name ))
         except AttributeError:
             return respond_back(ERROR, 'Expects a valid data in the departments')
-
+        
         filename = current_user.username + '_' + repository_to_use.repo_name + '_' \
                    + course_code.replace( ' ', '_' ) + '.json'
         try:
@@ -307,20 +304,22 @@ def admin_add_course_route():
             new_file.close()
         except ValueError:
             return respond_back(ERROR,'Invalid JSON Document for question' )
-        course = Course(name=course_name, code=course_code, lecturer_in_charge=personnel_in_charge,
+        course = Course(name=course_name, code=course_code, lecturer_in_charge=personnel_in_charge, 
+                        answers_approach = approach, expires_on = expires,
                         date_to_be_held=date_from_string(hearing_date), duration_in_minutes=int(duration_in_minutes),
-                        departments=department_list, filename =filename)
+                        departments=department_list, filename =filename, randomize_questions =randomize_question )
+        
         repository_to_use.courses.append( course )
         
         db.session.add(course)
         db.session.add(repository_to_use)
-        db.session.add(current_user)
+        db.session.add(current_user)        
         
         db.session.commit()
         return respond_back(SUCCESS, 'New course added successfully')
     except BadRequest:
         return respond_back(ERROR, 'Bad request')
-    except Exception:
+    except Exception as e:
         return respond_back(ERROR, 'Could not add the course')
 
 
@@ -330,7 +329,6 @@ def admin_add_course_route():
 def get_repositories_route():
     repositories = [ { 'name': repository.repo_name, \
         'courses': [ course.name for course in repository.courses ] } for repository in current_user.repositories]
-    print repositories
     return jsonify({'status': 1, 'repositories': repositories, 'detail': 'Successful' } )
 
 

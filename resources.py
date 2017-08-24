@@ -59,7 +59,7 @@ def list_courses_data(list_of_courses):
 
 def jsonify_courses(list_of_courses, date_from, date_to):
     courses = list_courses_data(list_of_courses)
-    return jsonify({'status': SUCCESS, 'exams': courses, 'from': str(date_from),
+    return jsonify({'status': SUCCESS, 'exams': courses, 'from': str(date_from), 'cacheable': True,
                     'to': str(date_to), 'reply_to': url_for('auth.post_data_route', _external=True),
                     'login_through': url_for('main.login_route', _external=True)})
 

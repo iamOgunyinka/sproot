@@ -19,9 +19,11 @@ def before_first_request():
     cs = Department(name='Computer Science')
     mass_com = Department(name='Mass Communication' )
 
-    cpp = Course(name='C++', code='pdc709', lecturer_in_charge='Balogun, Mr.',
+    cpp = Course(name='General Affairs', code='pdc709', lecturer_in_charge='Balogun, Mr.',
                  filename='sample_questions.json', date_to_be_held=date.today(),
-                 duration_in_minutes=120, departments=[cs, mass_com])
+                 duration_in_minutes=120, departments=[cs, mass_com], 
+                 randomize_questions = False, 
+                 answers_approach = Course.TRADITIONAL_ANSWER_APPROACH )
     repo = Repository( repo_name='sproot', courses=[cpp] )
     user = User(username='iamOgunyinka', password='foobar', matric_staff_number='16/68HC014', role=4 )
     user.repositories.append( repo )
