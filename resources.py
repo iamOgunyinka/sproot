@@ -51,9 +51,11 @@ def list_courses_data(list_of_courses):
     for course in list_of_courses:
         my_list.append(
             {'paper_name': course.name, 'paper_code': course.code.upper(), 'duration': course.duration_in_minutes,
-             'departments': jsonify_departments(course.departments), 'instructor': course.lecturer_in_charge,
-             'url': url_for('main.get_paper_route', url=coursify(course.id, course.filename),
-                            _external=True)})
+            'departments': jsonify_departments(course.departments), 'instructor': course.lecturer_in_charge,
+            'randomize': course.randomize_questions, 'answers_approach': course.answers_approach,
+            'login_required': course.sign_in_required,
+            'url': url_for('main.get_paper_route', url=coursify(course.id, course.filename),
+                _external=True)})
     return my_list
 
 

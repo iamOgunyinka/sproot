@@ -70,6 +70,7 @@ class Course(db.Model):
     duration_in_minutes = db.Column(db.Integer, nullable=False)
     randomize_questions = db.Column( db.Boolean, nullable = False )
     answers_approach = db.Column( db.SmallInteger, nullable = False )
+    sign_in_required = db.Column( db.Boolean, nullable = False )
     
     repo_id = db.Column(db.Integer, db.ForeignKey('repositories.id'))
     

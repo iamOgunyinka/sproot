@@ -263,6 +263,7 @@ def admin_add_course_route():
         approach = data.get( 'approach' )
         randomize_question = data.get( 'randomize' )
         expires = data.get( 'expires_on' )
+        sign_in_required = data.get( 'sign_in_required', False )
         
         # Array of name:faculty objects
         departments = data.get('departments')
@@ -305,7 +306,7 @@ def admin_add_course_route():
         except ValueError:
             return respond_back(ERROR,'Invalid JSON Document for question' )
         course = Course(name=course_name, code=course_code, lecturer_in_charge=personnel_in_charge, 
-                        answers_approach = approach, expires_on = expires,
+                        answers_approach = approach, expires_on = expires, sign_in_required = sign_in_required,
                         date_to_be_held=date_from_string(hearing_date), duration_in_minutes=int(duration_in_minutes),
                         departments=department_list, filename =filename, randomize_questions =randomize_question )
         
