@@ -12,17 +12,19 @@ from resources import urlify, get_data, respond_back, jsonify_courses, administr
 from resources import ERROR, SUCCESS, UPLOAD_DIR, list_courses_data
 from random import randint
 from flask_login import login_required, login_user, current_user
+import json
 
 
 main = Blueprint('main', __name__)
 auth = Blueprint('auth', __name__)
-
+EXT = '.silt'
 
 def invalid_url_error():
     return respond_back(ERROR, 'Invalid URL specified')
 
 
-@main.route('/<username>/<repo>.silt')
+
+@main.route('/<username>/<repo>{ext}'.format(ext=EXT))
 def initial_request_route(username, repo):
     local_usr = db.session.query(User).filter_by(username=username).first()
     if local_usr is None or local_usr.role != User.ADMINISTRATOR:
@@ -298,11 +300,10 @@ def admin_add_course_route():
                    + course_code.replace( ' ', '_' ) + '.json'
         try:
             full_path = safe_join( UPLOAD_DIR, filename )
-            new_file = open(full_path,mode='w')
-            if type( question_location ) != dict:
-                raise ValueError("")
-            new_file.write(str(question_location))
-            new_file.close()
+            with open(full_path,mode='wt') as out:
+                res = json.dump( question_location, out, sort_keys=True, 
+                    indent=4, separators=(',', ': '))
+            
         except ValueError:
             return respond_back(ERROR,'Invalid JSON Document for question' )
         course = Course(name=course_name, code=course_code, lecturer_in_charge=personnel_in_charge, 
@@ -321,6 +322,7 @@ def admin_add_course_route():
     except BadRequest:
         return respond_back(ERROR, 'Bad request')
     except Exception as e:
+        print e
         return respond_back(ERROR, 'Could not add the course')
 
 
@@ -328,7 +330,9 @@ def admin_add_course_route():
 @login_required
 @administrator_required
 def get_repositories_route():
-    repositories = [ { 'name': repository.repo_name, \
+    repositories = [ { 'name': repository.repo_name, 
+        'url': '{url}{username}/{repo}{ext}'.format( url=
+            url_for( 'main.main_route', _external=True), username=current_user.username,repo=repository.repo_name,ext=EXT),
         'courses': [ course.name for course in repository.courses ] } for repository in current_user.repositories]
     return jsonify({'status': 1, 'repositories': repositories, 'detail': 'Successful' } )
 
