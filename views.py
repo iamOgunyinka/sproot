@@ -4,7 +4,7 @@
 #  Copyright 2017 Joshua <ogunyinkajoshua@gmail.com>
 
 
-from flask import Blueprint, jsonify, request, redirect, url_for, send_from_directory, safe_join
+from flask import Blueprint, jsonify, request, redirect, url_for, send_file, safe_join
 from werkzeug.exceptions import BadRequest
 from datetime import date
 from models import db, User, Course, ExamTaken, Department, Repository
@@ -12,7 +12,7 @@ from resources import urlify, get_data, respond_back, jsonify_courses, administr
 from resources import ERROR, SUCCESS, UPLOAD_DIR, list_courses_data
 from random import randint
 from flask_login import login_required, login_user, current_user
-import json
+import json, os
 
 
 main = Blueprint('main', __name__)
@@ -22,6 +22,12 @@ EXT = '.silt'
 def invalid_url_error():
     return respond_back(ERROR, 'Invalid URL specified')
 
+
+def safe_makedir( parent_path, path, paths=''):
+    user_directory = os.path.join(parent_path, safe_join( path, paths))
+    if not os.path.exists(user_directory):
+        os.makedirs(user_directory)
+    return user_directory
 
 
 @main.route('/<username>/<repo>{ext}'.format(ext=EXT))
@@ -120,7 +126,7 @@ def get_data_route():
     course = db.session.query(Course).filter_by(id=file_id).first()
     if course is None:
         return invalid_url_error()
-    return send_from_directory(directory=UPLOAD_DIR, filename=course.filename)
+    return send_file( course.filename)
 
 
 @auth.route('/post_data', methods=['POST'])
@@ -185,6 +191,7 @@ def add_admin_route():
         repository = Repository( repo_name = repository_name )
         new_user = User(username=username, password=password, matric_staff_number=staff_number,
                         role=User.ADMINISTRATOR, repositories=[repository])
+        safe_makedir( UPLOAD_DIR, username, repository_name )
         db.session.add(repository)
         db.session.add(new_user)
         db.session.commit()
@@ -236,14 +243,17 @@ def add_repository_route():
                 return respond_back( ERROR, 'Repository with that name already exist in your account')
         repository = Repository( repo_name = repository_name )
         current_user.repositories.append( repository )
-        
+
+        safe_makedir(UPLOAD_DIR, current_user.username, repository_name )
+
         db.session.add( repository )
         db.session.add( current_user )
         db.session.commit()
         return respond_back(SUCCESS,'Successful')
     except BadRequest:
         return respond_back(ERROR, 'Bad request')
-    except:
+    except Exception as e:
+        print e
         return respond_back(ERROR, 'Unable to add repository, check the data and try again')
 
 
@@ -296,20 +306,21 @@ def admin_add_course_route():
         except AttributeError:
             return respond_back(ERROR, 'Expects a valid data in the departments')
         
-        filename = current_user.username + '_' + repository_to_use.repo_name + '_' \
-                   + course_code.replace( ' ', '_' ) + '.json'
+        full_path = None
         try:
-            full_path = safe_join( UPLOAD_DIR, filename )
+            filename = course_code.replace( ' ', '_' ).replace( '.', '_' ) + '.json'
+            dir_path = safe_makedir( UPLOAD_DIR, current_user.username, repository_name )
+            full_path = safe_join( dir_path, filename )
+
             with open(full_path,mode='wt') as out:
-                res = json.dump( question_location, out, sort_keys=True, 
-                    indent=4, separators=(',', ': '))
+                json.dump( question_location, out, sort_keys=True, indent=4, separators=(',', ': '))
             
         except ValueError:
             return respond_back(ERROR,'Invalid JSON Document for question' )
         course = Course(name=course_name, code=course_code, lecturer_in_charge=personnel_in_charge, 
                         answers_approach = approach, expires_on = expires, sign_in_required = sign_in_required,
                         date_to_be_held=date_from_string(hearing_date), duration_in_minutes=int(duration_in_minutes),
-                        departments=department_list, filename =filename, randomize_questions =randomize_question )
+                        departments=department_list, filename =full_path, randomize_questions =randomize_question )
         
         repository_to_use.courses.append( course )
         
