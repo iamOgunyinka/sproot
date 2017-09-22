@@ -54,6 +54,8 @@ def list_courses_data(list_of_courses):
             'departments': jsonify_departments(course.departments), 'instructor': course.lecturer_in_charge,
             'randomize': course.randomize_questions, 'answers_approach': course.answers_approach,
             'login_required': course.sign_in_required,
+            'reply_to': url_for( 'auth.post_secure_sesd_route' if course.sign_in_required
+                                 else 'main.post_unsecure_sesd_route', _external=True),
             'url': url_for('main.get_paper_route', url=coursify(course.id, course.filename),
                 _external=True)})
     return my_list
@@ -62,8 +64,7 @@ def list_courses_data(list_of_courses):
 def jsonify_courses(list_of_courses, date_from, date_to):
     courses = list_courses_data(list_of_courses)
     return jsonify({'status': SUCCESS, 'exams': courses, 'from': str(date_from), 'cacheable': True,
-                    'to': str(date_to), 'reply_to': url_for('auth.post_data_route', _external=True),
-                    'login_through': url_for('main.login_route', _external=True)})
+                    'to': str(date_to), 'login_through': url_for('main.login_route', _external=True)})
 
 
 def respond_back(message_code, message_detail):
@@ -78,3 +79,17 @@ def administrator_required(f):
         return f(*args, **kwargs)
 
     return decorated_func
+
+
+class MyJSONObjectWriter():
+    def __init__(self):
+        self.buffer = ''
+
+    def write(self, new_string):
+        self.buffer += new_string
+
+    def get_buffer(self):
+        return self.buffer
+
+    def __repr__(self):
+        return self.get_buffer()

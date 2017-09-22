@@ -9,15 +9,21 @@ from werkzeug.exceptions import BadRequest
 from datetime import date
 from models import db, User, Course, ExamTaken, Department, Repository
 from resources import urlify, get_data, respond_back, jsonify_courses, administrator_required
-from resources import ERROR, SUCCESS, UPLOAD_DIR, list_courses_data
+from resources import ERROR, SUCCESS, UPLOAD_DIR, list_courses_data, MyJSONObjectWriter
 from random import randint
 from flask_login import login_required, login_user, current_user
+from flask_uploads import UploadSet, UploadNotAllowed, IMAGES, TEXT, DOCUMENTS, DATA
 import json, os
 
 
+RAW_FILES = TEXT + DOCUMENTS + DATA
+EXT = '.silt'
+
 main = Blueprint('main', __name__)
 auth = Blueprint('auth', __name__)
-EXT = '.silt'
+photos = UploadSet( 'photos', IMAGES )
+raw_files = UploadSet( 'rawFiles', RAW_FILES )
+
 
 def invalid_url_error():
     return respond_back(ERROR, 'Invalid URL specified')
@@ -51,7 +57,9 @@ def main_route():
         'add_repository': url_for( 'auth.add_repository_route', _external=True),
         'add_course': url_for( 'auth.admin_add_course_route', _external=True),
         'get_repositories': url_for( 'auth.get_repositories_route', _external=True),
-        'get_courses': url_for( 'auth.get_courses_route', _external=True)
+        'get_courses': url_for( 'auth.get_courses_route', _external=True),
+        'upload_image': url_for('auth.upload_image_route', _external=True),
+        'upload_file': url_for('auth.upload_file_route', _external=True)
     }
     return jsonify( {'status': SUCCESS, 'endpoints': endpoints})
 
@@ -103,6 +111,11 @@ def error_404(e):
     return invalid_url_error()
 
 
+@auth.app_errorhandler(413)
+def request_entity_too_large(e):
+    return respond_back(ERROR,'Request entity is too large')
+
+
 @main.app_errorhandler(500)
 def interval_server_error(e):
     return respond_back(ERROR,'An internal server error occured')
@@ -129,27 +142,40 @@ def get_data_route():
     return send_file( course.filename)
 
 
-@auth.route('/post_data', methods=['POST'])
-@login_required
-def post_data_route():
+# student exam solution data( sesd )
+@main.route( '/p-usesd', methods=['POST'] )
+def post_unsecure_sesd_route():
     try:
         data = request.get_json()
         matriculation_number = data.get('matric_number', None)
         course_code = data.get('course_code', None)
         date_taken = data.get('date_taken', None)
-        if matriculation_number is None or course_code is None or date_taken is None:
+        answer_pair = data.get('answer_pair')
+        if matriculation_number is None or course_code is None or date_taken is None or answer_pair is None:
             return respond_back(ERROR, 'One of the primary arguments are missing')
         course_already_taken = db.session.query(ExamTaken).filter_by(matric_number=matriculation_number,
                                                                      course_code=course_code).first()
+#       needed to verify JSON object's correctness for the answer
+        answer_object = MyJSONObjectWriter()
+        json.dump(answer_pair, answer_object, skipkeys=True, indent=2, separators=(',', ': '))
+        other_data = answer_object.get_buffer()
+
         if course_already_taken is not None:
             return respond_back(ERROR, 'You have already taken this examination')
         exam_taken = ExamTaken(matric_number=matriculation_number, course_code=course_code,
-                               date_taken=date_from_string(date_taken), other_data=str(data.get('answer_pair', None)))
+                               date_taken=date_from_string(date_taken), other_data=other_data)
         db.session.add(exam_taken)
         db.session.commit()
         return respond_back(SUCCESS, 'OK')
     except BadRequest:
         return respond_back(ERROR, 'No data was specified')
+
+
+# student exam solution data( sesd )
+@auth.route('/p-ssesd', methods=['POST'])
+@login_required
+def post_secure_sesd_route():
+    return post_unsecure_sesd_route()
 
 
 @main.route('/user_login', methods=['POST'])
@@ -158,7 +184,7 @@ def login_route():
         data = request.get_json()
         matric_number = data.get('username', None)
         password = data.get('password', None)
-        course = data.get('course', None)
+        #course = data.get('course', None)
 
         student = db.session.query(User).filter_by(matric_staff_number=matric_number).first()
         if student is None:
@@ -271,7 +297,7 @@ def admin_add_course_route():
         personnel_in_charge = data.get('administrator_name')
         hearing_date = data.get('date_to_be_held')
         duration_in_minutes = data.get('duration')
-        question_location = data.get('question')
+        question = data.get('question')
         approach = data.get( 'approach' )
         randomize_question = data.get( 'randomize' )
         expires = data.get( 'expires_on' )
@@ -283,7 +309,7 @@ def admin_add_course_route():
         
         if course_code is None or course_name is None or personnel_in_charge is None or \
                         hearing_date is None or duration_in_minutes is None or departments is None or \
-                        question_location is None or randomize_question is None or approach is None:
+                        question is None or randomize_question is None or approach is None:
             return respond_back(ERROR, 'Missing arguments')
         
         repositories = current_user.repositories
@@ -313,7 +339,7 @@ def admin_add_course_route():
             full_path = safe_join( dir_path, filename )
 
             with open(full_path,mode='wt') as out:
-                json.dump( question_location, out, sort_keys=True, indent=4, separators=(',', ': '))
+                json.dump( question, out, sort_keys=True, indent=4, separators=(',', ': '))
             
         except ValueError:
             return respond_back(ERROR,'Invalid JSON Document for question' )
@@ -362,6 +388,35 @@ def get_courses_route():
         return jsonify({'status':SUCCESS, 'courses': list_courses_data(repository.courses)})
     except BadRequest:
         return respond_back(ERROR, 'Bad request')
+
+
+def upload(upload_object,request_object,username,data):
+    if data in request_object.files:
+        repository_name = request_object.args.get('repository')
+        if repository_name is None or len(str(repository_name)) < 1:
+            return respond_back(ERROR,'Invalid repository name')
+        try:
+            sub_dir = '{parent_dir}/{sub}'.format(parent_dir=username,sub=repository_name)
+            filename = upload_object.save(request_object.files[data], folder=sub_dir)
+            url = upload_object.url(filename)
+            return respond_back(SUCCESS, url)
+        except UploadNotAllowed:
+            return respond_back(ERROR, 'Upload type not allowed')
+    return respond_back(ERROR, 'Invalid data')
+
+
+@auth.route( '/upload_image', methods=['POST'])
+@login_required
+@administrator_required
+def upload_image_route():
+    return upload(photos,request,current_user.username,'photo')
+
+
+@auth.route( '/upload_raw_file', methods=['POST'] )
+@login_required
+@administrator_required
+def upload_file_route():
+    return upload(raw_files,request,current_user.username,'raw')
 
 
 @auth.before_request
