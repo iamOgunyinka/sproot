@@ -4,12 +4,12 @@
 #  Copyright 2017 Joshua <ogunyinkajoshua@gmail.com>
 
 
-from flask import Blueprint, jsonify, request, redirect, url_for, send_file, safe_join
+from flask import Blueprint, jsonify, request, redirect, send_file, safe_join
 from werkzeug.exceptions import BadRequest
 from datetime import date
 from models import db, User, Course, ExamTaken, Department, Repository
 from resources import urlify, get_data, respond_back, jsonify_courses, administrator_required
-from resources import ERROR, SUCCESS, UPLOAD_DIR, list_courses_data, MyJSONObjectWriter
+from resources import ERROR, SUCCESS, UPLOAD_DIR, list_courses_data, MyJSONObjectWriter, url_for
 from random import randint
 from flask_login import login_required, login_user, current_user
 from flask_uploads import UploadSet, UploadNotAllowed, IMAGES, TEXT, DOCUMENTS, DATA
@@ -181,6 +181,8 @@ def post_secure_sesd_route():
 def login_route():
     try:
         data = request.get_json()
+        if data is None:
+            return respond_back( ERROR, 'Invalid request sent' )
         matric_number = data.get('username', None)
         password = data.get('password', None)
         # course = data.get('course', None)
@@ -301,6 +303,7 @@ def admin_add_course_route():
         randomize_question = data.get('randomize')
         expires = data.get('expires_on')
         sign_in_required = data.get('sign_in_required', False)
+        solution = data.get( 'answers' )
 
         # Array of name:faculty objects
         departments = data.get('departments')
@@ -308,7 +311,8 @@ def admin_add_course_route():
 
         if course_code is None or course_name is None or personnel_in_charge is None or \
                         hearing_date is None or duration_in_minutes is None or departments is None or \
-                        question is None or randomize_question is None or approach is None:
+                        question is None or randomize_question is None or approach is None \
+                        or solution is None:
             return respond_back(ERROR, 'Missing arguments')
 
         repositories = current_user.repositories
@@ -331,21 +335,24 @@ def admin_add_course_route():
         except AttributeError:
             return respond_back(ERROR, 'Expects a valid data in the departments')
 
-        full_path = None
+        full_path, solution_fn = ( None, None )
         try:
             filename = course_code.replace(' ', '_').replace('.', '_') + '.json'
             dir_path = safe_makedir(UPLOAD_DIR, current_user.username, repository_name)
             full_path = safe_join(dir_path, filename)
+            solution_fn = safe_join(dir_path, 'solutions_'+ filename)
 
             with open(full_path, mode='wt') as out:
                 json.dump(question, out, sort_keys=True, indent=4, separators=(',', ': '))
-
+            with open( solution_fn, mode='wt') as out:
+                json.dump(solution, out, indent=True, separators=(',', ': '))
         except ValueError:
             return respond_back(ERROR, 'Invalid JSON Document for question')
         course = Course(name=course_name, code=course_code, lecturer_in_charge=personnel_in_charge,
                         answers_approach=approach, expires_on=expires, sign_in_required=sign_in_required,
                         date_to_be_held=date_from_string(hearing_date), duration_in_minutes=int(duration_in_minutes),
-                        departments=department_list, filename=full_path, randomize_questions=randomize_question)
+                        departments=department_list, filename=full_path, solutions_filename = solution_fn,
+                        randomize_questions=randomize_question)
 
         repository_to_use.courses.append(course)
 
@@ -358,7 +365,6 @@ def admin_add_course_route():
     except BadRequest:
         return respond_back(ERROR, 'Bad request')
     except Exception as e:
-        print e
         return respond_back(ERROR, 'Could not add the course')
 
 

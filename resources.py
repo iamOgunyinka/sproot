@@ -7,12 +7,13 @@
 from itsdangerous import TimedJSONWebSignatureSerializer as TJsonSerializer, SignatureExpired, BadSignature
 from flask import url_for, jsonify
 from flask_login import current_user
-from functools import wraps
+from functools import wraps, partial
 import os
 
 ERROR, SUCCESS = (0, 1)
 UPLOAD_DIR = os.environ.get('UPLOAD_DIR')
 ADMINISTRATOR = 4
+url_for = partial( url_for, _scheme='https' )
 
 def urlify(local_user, repository, expiry):
     s = TJsonSerializer(os.environ.get('SECRET_KEY'), expires_in=expiry)

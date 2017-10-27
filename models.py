@@ -64,14 +64,14 @@ class Course(db.Model):
     code = db.Column(db.String(32), nullable=False, index=True, unique=False)
     lecturer_in_charge = db.Column(db.String(128), nullable=False)
     departments = db.relationship('Department', backref='course')
-    filename = db.Column(db.Text, nullable=False)
+    filename = db.Column(db.Text, nullable=False) #for questions
+    solutions_filename = db.Column( db.Text, nullable =False) #for solutions
     date_to_be_held = db.Column(db.Date, nullable=False)
     expires_on = db.Column( db.Date, nullable = True )
     duration_in_minutes = db.Column(db.Integer, nullable=False)
     randomize_questions = db.Column( db.Boolean, nullable = False )
     answers_approach = db.Column( db.SmallInteger, nullable = False )
     sign_in_required = db.Column( db.Boolean, nullable = False )
-    
     repo_id = db.Column(db.Integer, db.ForeignKey('repositories.id'))
     
     TRADITIONAL_ANSWER_APPROACH = 0x1
