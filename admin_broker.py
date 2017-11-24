@@ -1,0 +1,91 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#
+#  admin_broker.py
+#  
+#  Copyright 2017 Josh <Josh@JOSHUA>
+
+from flask import Flask
+from flask_sqlalchemy import SQLAlchemy
+from models import User, DEFAULT_DISPLAY_PICTURE
+from sqlalchemy.exc import InvalidRequestError, ProgrammingError, IntegrityError
+from threading import Thread
+import os
+import redis
+import time
+import json
+
+
+cache_pass, port_number = os.environ.get('redis_pass'), int(os.environ.get('redis_port'))
+data_cache = redis.StrictRedis(password=cache_pass, port=port_number)
+# sleep_time = 60 * 60 * 2 # 2 hours
+sleep_time = 60
+admin_request_key = 'tuq:admin_requests'
+failures_key = 'tuq:admin_request_fails'
+pending_email_keys = 'tuq:pending_confirmation_emails'
+
+
+def create_app():
+    application = Flask(__name__)
+
+    application.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
+    application.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DB_URL')
+    application.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True
+    return application
+
+
+def save_to_database(user_info, db_connector):
+    this_user = User(fullname=user_info.get('fullname'), address=user_info.get('address'),
+                     email=user_info.get('email'), phone_number=user_info.get('mobile'),
+                     is_active_premium=False,is_confirmed=False, role=User.ADMINISTRATOR,
+                     display_picture=DEFAULT_DISPLAY_PICTURE, username=user_info.get('username'),
+                     alias=user_info.get('alias'), password=user_info.get('password'),
+                     other_info='Nationality: {}'.format(user_info.get('nationality')))
+    try:
+        db_connector.session.add(this_user)
+        db_connector.session.commit()
+        return True, this_user.id
+    except ProgrammingError as pe:
+        print pe
+    except IntegrityError as ie:
+        print ie
+    except InvalidRequestError as ire:
+        print ire
+    except Exception as all_other_exceptions:
+        print all_other_exceptions
+    return False, False
+
+
+app = create_app()
+db = SQLAlchemy()
+db.init_app(app)
+
+
+def main(logger):
+    time.sleep(20)
+    with app.app_context():
+        while True:
+            user_keys = data_cache.hgetall(admin_request_key).keys()
+            logger.write('Keys: {}'.format(str(user_keys)))
+            if len(user_keys) == 0:
+                logger.flush()
+                time.sleep(sleep_time)
+            for user_key in user_keys:
+                data = data_cache.hget(admin_request_key, user_key)
+                this_user_info = json.loads(data)
+                operation_result_tuple = save_to_database(this_user_info, db)
+                if not all(operation_result_tuple):
+                    data_cache.hset(failures_key, user_key, data)
+                else:  # succeeded, queue it up for the next pending emails
+                    data_cache.hset(pending_email_keys, this_user_info.get('email'),
+                                    '{} %% {}'.format(operation_result_tuple[1], this_user_info.get('fullname')))
+                data_cache.hdel(admin_request_key, user_key)
+
+
+event_logger = open('./logs.txt', 'a')
+new_thread = Thread(target=main, args=[event_logger])
+new_thread.setDaemon(True)
+new_thread.start()
+
+if __name__ == '__main__':
+    app.run()

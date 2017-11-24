@@ -8,17 +8,39 @@ from itsdangerous import TimedJSONWebSignatureSerializer as TJsonSerializer, Sig
 from flask import url_for, jsonify
 from flask_login import current_user
 from functools import wraps, partial
+from models import Course
 import os
+import redis
+
 
 ERROR, SUCCESS = (0, 1)
-UPLOAD_DIR = os.environ.get('UPLOAD_DIR')
+UPLOAD_DIR = os.environ.get('FILES_DIR')
 ADMINISTRATOR = 4
-url_for = partial( url_for, _scheme='https' )
+url_for = partial( url_for, _scheme='http' )
+# well_known_courses is a map of most accessed courses and their owners/repository
+well_known_repositories = {}
+EXPIRY_INTERVAL = 60 * 60 * 12  # 12hours
 
-def urlify(local_user, repository, expiry):
+
+cache_pass,port_number=os.environ.get('redis_pass'),int(os.environ.get('redis_port'))
+data_cache = redis.StrictRedis(password=cache_pass,port=port_number)
+pending_email_keys = 'tuq:pending_confirmation_emails'
+pending_paper_keys = 'tuq:pending_papers'
+well_known_courses = 'tuq:known_courses'
+
+
+def send_confirmation_message(user_email, user_id, fullname ):
+    data_cache.hset(pending_email_keys, user_email, '{} %% {}'.format(user_id,fullname))
+
+
+def submit_paper_for_marking(user_email,data_string):
+    data_cache.hset(pending_paper_keys, user_email, data_string)
+
+
+def urlify(course_owner, repository, expiry):
     s = TJsonSerializer(os.environ.get('SECRET_KEY'), expires_in=expiry)
-    token = s.dumps({'repo_name': repository.repo_name, 'staff_number': local_user.matric_staff_number})
-    return url_for('main.raw_route', token=token, expires=expiry, _external=True)
+    token = s.dumps({'repo_name': repository.repo_name, 'staff_number': course_owner.username})
+    return url_for('auth.raw_route', token=token, expires=expiry, _external=True)
 
 
 def get_data(expiry, token):
@@ -47,25 +69,23 @@ def jsonify_departments(departments):
     return list_of_department
 
 
-def list_courses_data(list_of_courses):
+def list_courses_data(owner, list_of_courses):
     my_list = []
     for course in list_of_courses:
         my_list.append(
-            {'paper_name': course.name, 'paper_code': course.code.upper(), 'duration': course.duration_in_minutes,
-            'departments': jsonify_departments(course.departments), 'instructor': course.lecturer_in_charge,
-            'randomize': course.randomize_questions, 'answers_approach': course.answers_approach,
-            'login_required': course.sign_in_required,
-            'reply_to': url_for( 'auth.post_secure_sesd_route' if course.sign_in_required
-                                 else 'main.post_unsecure_sesd_route', _external=True),
-            'url': url_for('main.get_paper_route', url=coursify(course.id, course.filename),
+            {'paper_name': course.name, 'paper_code': Course.generate_course_token(course.id,EXPIRY_INTERVAL), 
+            'duration': course.duration_in_minutes, 'instructor': course.lecturer_in_charge,
+            'departments': jsonify_departments(course.departments), 'randomize': course.randomize_questions,
+            'owner': owner.username, 'reply_to': url_for('auth.post_secure_sesd_route', _external=True),
+            'url': url_for('auth.get_paper_route', url=coursify(course.id, course.quiz_filename),
                 _external=True)})
     return my_list
 
 
-def jsonify_courses(list_of_courses, date_from, date_to):
-    courses = list_courses_data(list_of_courses)
+def jsonify_courses(owner, list_of_courses, date_from, date_to):
+    courses = list_courses_data(owner, list_of_courses)
     return jsonify({'status': SUCCESS, 'exams': courses, 'from': str(date_from), 'cacheable': True,
-                    'to': str(date_to), 'login_through': url_for('main.login_route', _external=True)})
+                    'to': str(date_to)})
 
 
 def respond_back(message_code, message_detail):
@@ -75,7 +95,7 @@ def respond_back(message_code, message_detail):
 def administrator_required(f):
     @wraps(f)
     def decorated_func(*args, **kwargs):
-        if current_user.role != ADMINISTRATOR:
+        if current_user.role < ADMINISTRATOR:
             return respond_back(ERROR, 'Only an admin is allowed to carry out this operation')
         return f(*args, **kwargs)
 

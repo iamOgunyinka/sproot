@@ -1,0 +1,12 @@
+Dear {{ full_name }},
+
+Thank you for registering on {{ company }}!
+
+To confirm your account and continue with the rest of the registration, please click on the link below:
+
+{{ link_url }}
+
+Sincerely,
+The {{ company }} Team.
+
+PS: replies to this mail are not monitored.
