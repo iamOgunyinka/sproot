@@ -1,0 +1,112 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+  <title>Tuq, official webpage</title>
+  <meta name="description" content="website description" />
+  <meta name="keywords" content="website keywords, website keywords" />
+  <meta http-equiv="content-type" content="text/html; charset=windows-1252" />
+  <link rel="stylesheet" type="text/css" href="{{ url_for( 'static', filename = 'style/style.css' ) }}" title="style" />
+</head>
+
+<body>
+  <div id="main">
+    <div id="header">
+      <div id="logo">
+        <div id="logo_text">
+          <!-- class="logo_colour", allows you to change the colour of the text -->
+          <h1><a href="#">Tuq<span class="logo_colour">on the Go</span></a></h1>
+          <h2>The Universal Quiz App</h2>
+        </div>
+      </div>
+      <div id="menubar">
+        <ul id="menu">
+          <!-- put class="selected" in the li tag for the selected page - to highlight which page you're on -->
+          <li class="selected"><a href="{{links.index_url}}">Home</a></li>
+          <li><a href="{{links.admin_reg}}">Registration</a></li>
+          <li><a href="{{links.tuq_on_pc}}">Tuq On PC</a></li>
+          <li><a href="#">Releases</a></li>
+          <li><a href="#">Contact Us</a></li>
+        </ul>
+      </div>
+    </div>
+    <div id="site_content">
+      <div class="sidebar">
+        <!-- insert your sidebar items here -->
+        <h3>Latest News</h3>
+        <h4>New Products Launched</h4>
+        <h5>November 27, 2017</h5>
+        <p>2017 sees the redesign of two of our products. Take a look around.<br /><a href="releases.html">Read more</a></p>
+        <p></p>
+        <!--
+        <h4>New Website Launched</h4>
+        <h5>January 1st, 2010</h5>
+        <p>2010 sees the redesign of our website. Take a look around and let us know what you think.<br /><a href="#">Read more</a></p>
+        <h3>Useful Links</h3>
+        <ul>
+          <li><a href="#">link 1</a></li>
+          <li><a href="#">link 2</a></li>
+          <li><a href="#">link 3</a></li>
+          <li><a href="#">link 4</a></li>
+        </ul>
+        -->
+        <h3>Search</h3>
+        <form method="post" action="#" id="search_form">
+          <p>
+            <input class="search" type="text" name="search_field" value="Enter keywords....." />
+            <input name="search" type="image" style="border: 0; margin: 0 0 -9px 5px;" 
+                src="{{ url_for( 'static', filename = 'style/search.png' ) }}" alt="Search" title="Search" />
+          </p>
+        </form>
+      </div>
+      <div id="content">
+        <!-- insert the page content here -->
+        <h1>Welcome to the official website of Tuq</h1>
+        <p>Tuq, pronounced Tuck, is an acronym for The Universal Quiz App(without the A, of course). It is a Q&amp;A
+        platform for quiz lovers, universities/colleges or high schools, employers, and the general public. Right 
+        now, it is restricted to multiple choice questions that requires no explicit input texts. </p>
+        <h2>How does the Android app work?</h2>
+        <p>
+            Conventionally, all the standalone quiz mobile apps I've seen on the web embed questions and their answers in the 
+            application binary(APK). Thus, a tiny mistake in the Q&amp;A gets carried over until the next application update.
+            That means, the general public don't get a proper Q&amp;A update unless they update their app to call the shots, 
+            ONLY the developer does. Moreover, most of these apps are single-focused for a domain -- an app for English language
+            IS for English, a medical Q&amp;A app is strictly for that.
+        </p>
+        <p>
+            How about an Android app that doesn't really have a single Q&A embedded in it but depends solely on the
+            general public to set questions and their respective answers? This app is dependent on data sent to and from
+            a server. On its own, it doesn't do much, other than to display questions and send your data to the server
+            for grading, so you can view your results after some minutes, say, 2 minutes on the same app.
+            To do this, there is a <a href="{{url_for('web.tuq_on_pc_route')}}">Desktop/PC software</a> for Q&amp;A
+            administrators that are used to upload questions to a server. When questions are uploaded on to the server,
+            it generates a unique web link, this unique link points to at most one repository. This link is what your
+            administrator will give out to you. Each link contains detailed information on every question that is within
+            its repository.
+        </p>
+        <p>
+            All you need is to get a repository link from your administrator, your friends and/or an employer, then
+            click on the + button on the Repository page, enter the link and wait for Tuq to do its magic. Each valid
+            links are saved under the Saved Links page for use in the future. Sometimes, submitting a quiz for grading may 
+            fail, most likely due to 3 reasons:
+        </p>
+        <ul>
+          <li>You have already taken that quiz</li>
+          <li>Your network</li>
+          <li>Server problem</li>
+        </ul>
+        <p>
+            In order not to lose your precious data and let you down, the "Submission Error" page list all the quizzes
+            that have been taken but failed to be submitted. You can then manually resend your "scripts" for grading.
+        </p>
+      </div>
+    </div>
+    <div id="content_footer"></div>
+    <div id="footer">
+      Copyright 2017 | <a href="http://validator.w3.org/check?uri=referer">HTML5</a> | 
+      <a href="http://jigsaw.w3.org/css-validator/check/referer">CSS</a> | 
+      <a href="http://www.html5webtemplates.co.uk">HTML5 Web Templates</a>
+    </div>
+  </div>
+</body>
+</html>

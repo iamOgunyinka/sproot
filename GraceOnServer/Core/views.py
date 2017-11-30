@@ -4,12 +4,12 @@
 #  Copyright 2017 Joshua <ogunyinkajoshua@gmail.com>
 
 
-from flask import Blueprint, jsonify, request, redirect, send_file, safe_join, render_template, flash, session
+from flask import Blueprint, jsonify, request, redirect, send_file, safe_join, render_template, flash
 from werkzeug.exceptions import BadRequest
 from datetime import date
 from sqlalchemy.exc import InvalidRequestError
 from models import db, User, Course, ExamTaken, Department, Repository, DEFAULT_DISPLAY_PICTURE
-from resources import urlify, get_data, respond_back, jsonify_courses, administrator_required, Links
+from resources import urlify, get_data, respond_back, jsonify_courses, administrator_required
 from resources import ERROR, SUCCESS, UPLOAD_DIR, list_courses_data, MyJSONObjectWriter, EXPIRY_INTERVAL
 from resources import send_confirmation_message, submit_paper_for_marking, url_for, well_known_courses
 from forms import data_cache, AdminRequestForm
@@ -24,7 +24,6 @@ EXT = '.silt'
 
 main = Blueprint('main', __name__)
 auth = Blueprint('auth', __name__)
-web = Blueprint('web', __name__)
 
 public_photos = UploadSet('photos', IMAGES, default_dest=lambda app: os.environ.get('GENERAL_UPLOAD_DIRECTORY'))
 public_raw_files = UploadSet('rawFiles', RAW_FILES, default_dest=lambda app: os.environ.get('GENERAL_UPLOAD_DIRECTORY'))
@@ -225,6 +224,30 @@ def login_route():
         return respond_back(ERROR, 'Invalid login request received.')
 
 
+@main.route('/admin_signup', methods=['GET', 'POST'])
+def admin_signup_route():
+    form = AdminRequestForm()
+    if form.validate_on_submit():
+        submission_info = {'username': form.username.data, 'fullname': form.full_name.data,
+                           'address': form.address.data, 'email': form.email.data,
+                           'nationality': form.nationality.data, 'alias': form.display_name.data,
+                           'mobile': form.phone_number.data, 'password': form.password.data }
+        json_writer = MyJSONObjectWriter()
+        json.dump(submission_info,json_writer, skipkeys=True, indent=2, separators=(',', ': '))
+        data_string = json_writer.get_buffer()
+
+        data_cache.hset('tuq:admin_requests', form.username.data, data_string)
+        flash('Thank you for using Tuq services, {}'.format(form.full_name.data))
+        return redirect(url_for('main.submission_made_route', _external=True))
+    else:
+        return render_template('admin_register.html', form=form)
+
+
+@main.route('/submission',methods=['GET'])
+def submission_made_route():
+    return render_template('submission.html')
+
+
 @main.route('/signup', methods=['POST', 'GET'])
 def signup_route():
     if request.method == 'POST':
@@ -356,77 +379,6 @@ def add_repository_route():
         return respond_back(ERROR, 'Unable to add repository, check the data and try again')
 
 
-def update_course(data, user, database_handle):
-    if data is None:
-        raise ValueError('Invalid data')
-    course_name = data.get('name')
-    course_code = data.get('course_code')
-    personnel_in_charge = data.get('administrator_name')
-    hearing_date = data.get('date_to_be_held')
-    duration_in_minutes = data.get('duration')
-    question = data.get('question')
-    approach = data.get('approach')
-    randomize_question = data.get('randomize')
-    expires = data.get('expires_on')
-    solution = data.get('answers')
-
-    departments = data.get('departments')
-    repository_name = data.get('repository_name')
-    if course_code is None or course_name is None or personnel_in_charge is None \
-            or hearing_date is None or duration_in_minutes is None or departments is None \
-            or question is None or randomize_question is None or approach is None \
-            or solution is None:
-        raise ValueError('Missing arguments')
-    repositories = user.repositories
-    repository_to_use = None
-    for repo in repositories:
-        if repo.repo_name == repository_name:
-            repository_to_use = repo
-            break
-
-    if repository_to_use is None:
-        raise ValueError('Repository does not exist')
-    course_to_use = None
-    for course in repository_to_use.courses:
-        if course_code == course.code:
-            course_to_use = course
-            break
-    if course_to_use is None:
-        raise ValueError('Course does not exist')
-
-    department_list = []
-    try:
-        for department_name in departments:
-            department_list.append(Department(name=department_name))
-    except AttributeError:
-        raise ValueError('Expects a valid data in the departments')
-
-    try:
-        with open(course_to_use.quiz_filename, mode='wt') as out:
-            json.dump(question, out, sort_keys=True, indent=4, separators=(',', ': '))
-        with open(course_to_use.solution_filename, mode='wt') as out:
-            json.dump(solution, out, indent=True, separators=(',', ': '))
-    except ValueError:
-        raise ValueError( 'Invalid JSON Document for question')
-    course_to_use.name = course_name
-    course_to_use.lecturer_in_charge = personnel_in_charge
-    course_to_use.answers_approach = approach
-    course_to_use.expires_on = expires
-    course_to_use.date_to_be_held = date_from_string( hearing_date )
-    course_to_use.duration_in_minutes = int(duration_in_minutes)
-    course_to_use.departments = department_list
-    course_to_use.randomize_questions = randomize_question
-
-    repository_to_use.courses.append(course_to_use)
-    database_handle.session.add(course_to_use)
-    db.session.commit()
-    course_cache = {'name': course_to_use.name, 'id': course_to_use.id,
-                    'owner': course_to_use.lecturer_in_charge,
-                    'code': course_to_use.code, 'solution': course_to_use.solution_filename,
-                    'question': course_to_use.quiz_filename}
-    data_cache.hset(well_known_courses, course_to_use.id, json.dumps(course_cache))
-
-
 @auth.route('/admin_add_course', methods=['POST'])
 @login_required
 @administrator_required
@@ -504,63 +456,16 @@ def admin_add_course_route():
         db.session.add(current_user)
 
         db.session.commit()
-        course_cache = {'name': course.name, 'id': course.id, 'owner': course.lecturer_in_charge,
-                        'code': course.code, 'solution': course.solution_filename,
-                        'question': course.quiz_filename}
-        data_cache.hset(well_known_courses, course.id, json.dumps(course_cache))
+        course_cache = { 'name': course.name, 'id': course.id, 'owner': course.lecturer_in_charge,
+                        'code': course.code, 'solution': course.solution_filename }
+        is_set = data_cache.hset(well_known_courses,course.id, json.dumps(course_cache))
+        print 'New course set: {}'.format( is_set )
         return respond_back(SUCCESS, 'New course added successfully')
     except BadRequest:
         return respond_back(ERROR, 'Bad request')
     except Exception as e:
         print e
         return respond_back(ERROR, 'Could not add the course')
-
-
-@auth.route('/edit_course', methods=['GET', 'POST'])
-@login_required
-@administrator_required
-def edit_course_route():
-    if request.method == 'GET':
-        try:
-            course_name = request.args.get('course_name')
-            repository_name = request.args.get('repository_name')
-            if course_name is None or repository_name is None:
-                return respond_back(ERROR, 'Missing request argument')
-            repository = db.session.query(Repository).\
-                filter_by(repo_name=repository_name,owner_id=current_user.id).first()
-            if repository is None:
-                return respond_back(ERROR,'Repository does not exist')
-            course = db.session.query(Course).filter_by(repo_id=repository.id, name=course_name).first()
-            if course is None:
-                return respond_back(ERROR, 'No course under that name was found')
-            departments = []
-            for dept in course.departments:
-                departments.append( dept.name )
-            question_file = open(course.quiz_filename, 'r')
-            answer_file = open(course.solution_filename, 'r')
-            data = {'name': course.name, 'course_code': course.code,
-                    'administrator_name': course.lecturer_in_charge,
-                    'departments': departments, 'repository_name': repository_name,
-                    'date_to_be_held': str(course.date_to_be_held),
-                    'duration': course.duration_in_minutes, 'approach': course.answers_approach,
-                    'randomize': course.randomize_questions, 'expires_on': str(course.expires_on),
-                    'question': json.load(question_file), 'answers': json.load(answer_file)
-                    }
-            question_file.close()
-            answer_file.close()
-            return respond_back(SUCCESS, data)
-        except Exception as exc:
-            print 'Exception caught: {}\n'.format(str(exc))
-            return respond_back(ERROR, 'Unable to get that information')
-    else:
-        try:
-            update_course( request.get_json(), current_user, db )
-            return respond_back(SUCCESS, 'Update performed successfully')
-        except ValueError as value_error:
-            return respond_back(ERROR, str(value_error))
-        except Exception as exc:
-            print exc
-            return respond_back(ERROR, 'Unable to perform course update')
 
 
 @auth.route('/get_repositories')
@@ -672,66 +577,24 @@ def delete_course_route():
     return respond_back(SUCCESS, 'Course removed successfully')
 
 
+# to-do: Fix edit courses
+@auth.route('/edit_course', methods=['GET', 'POST'])
+@login_required
+@administrator_required
+def edit_course_route():
+    if request.method == 'GET':
+        course_name = request.args.get( 'course_name' )
+        repository_name = request.args.get( 'repository_name')
+        if course_name is None or repository_name is None:
+            return respond_back(ERROR, 'Missing request argument')
+        
+    else:
+        return respond_back(SUCCESS, 'OK')
+
+
 @auth.before_request
 def before_auth_request():
     if not current_user.is_authenticated:
         return respond_back(ERROR, 'Not logged in')
     if not current_user.confirmed:
         return respond_back(ERROR, 'Account has not been confirmed yet')
-
-# ======================================The Web=======================================================
-
-@web.route('/admin_signup.html', methods=['GET', 'POST'])
-def admin_signup_route():
-    links = Links()
-    links.tuq_on_pc = url_for('web.tuq_on_pc_route',_external=True)
-    links.admin_reg = url_for('web.admin_signup_route',_external=True)
-    links.index_url = url_for('web.index_page_route',_external=True)
-    form = AdminRequestForm()
-    if form.validate_on_submit():
-        submission_info = {'username': form.username.data, 'fullname': form.full_name.data,
-                           'address': form.address.data, 'email': form.email.data,
-                           'nationality': form.nationality.data, 'alias': form.display_name.data,
-                           'mobile': form.phone_number.data, 'password': form.password.data }
-        json_writer = MyJSONObjectWriter()
-        json.dump(submission_info,json_writer, skipkeys=True, indent=2, separators=(',', ': '))
-        data_string = json_writer.get_buffer()
-
-        data_cache.hset('tuq:admin_requests', form.username.data, data_string)
-        flash('Thank you for using Tuq services, {}'.format(form.full_name.data))
-        session['name']=form.full_name.data
-        return redirect(url_for('main.submission_made_route', _external=True))
-    else:
-        return render_template('admin_register.html', form=form, links=links)
-
-
-@main.route('/submission',methods=['GET'])
-def submission_made_route():
-    fullname = session.get('name', None)
-    if fullname is None:
-        return redirect(url_for('web.index_page_route',_external=True))
-    session.pop('name')
-    links = Links()
-    links.tuq_on_pc = url_for('web.tuq_on_pc_route',_external=True)
-    links.admin_reg = url_for('web.admin_signup_route',_external=True)
-    links.index_url = url_for('web.index_page_route',_external=True)
-    return render_template('submission.html', links=links)
-    
-
-@web.route('/')
-def index_page_route():
-    links = Links()
-    links.tuq_on_pc = url_for('web.tuq_on_pc_route',_external=True)
-    links.admin_reg = url_for('web.admin_signup_route',_external=True)
-    links.index_url = url_for('web.index_page_route',_external=True)
-    return render_template('index.html', links=links)
-
-
-@web.route('/tuq_on_pc.html')
-def tuq_on_pc_route():
-    get_route_link = url_for('main.main_route', _external=True)
-    links = Links()
-    links.tuq_on_pc = url_for('web.tuq_on_pc_route',_external=True)
-    links.admin_reg = url_for('web.admin_signup_route',_external=True)
-    links.index_url = url_for('web.index_page_route',_external=True)
-    return render_template('tuq_on_pc.html', main_link=get_route_link, links=links)

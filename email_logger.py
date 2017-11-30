@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import pika, sys, os
+import pika, os
 
 
 def initialize_channel():
@@ -21,7 +21,7 @@ my_file = None
 
 def email_log_receiver_callback( channel, method, header, message ):
     channel.basic_ack( delivery_tag = method.delivery_tag )
-    if msg == 'quit':
+    if message == 'quit':
         channel.basic_cancel(consumer_tag='logs')
         channel.stop_consuming()
         my_file.close()

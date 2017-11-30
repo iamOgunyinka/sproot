@@ -16,7 +16,7 @@ import redis
 ERROR, SUCCESS = (0, 1)
 UPLOAD_DIR = os.environ.get('FILES_DIR')
 ADMINISTRATOR = 4
-url_for = partial( url_for, _scheme='http' )
+url_for = partial( url_for, _scheme='https' )
 # well_known_courses is a map of most accessed courses and their owners/repository
 well_known_repositories = {}
 EXPIRY_INTERVAL = 60 * 60 * 12  # 12hours
@@ -73,7 +73,8 @@ def list_courses_data(owner, list_of_courses):
     my_list = []
     for course in list_of_courses:
         my_list.append(
-            {'paper_name': course.name, 'paper_code': Course.generate_course_token(course.id,EXPIRY_INTERVAL * 2), 
+            {'paper_name': course.name, 'paper_code': 
+Course.generate_course_token(course.id,EXPIRY_INTERVAL * 2), 
             'duration': course.duration_in_minutes, 'instructor': course.lecturer_in_charge,
             'departments': jsonify_departments(course.departments), 'randomize': course.randomize_questions,
             'owner': owner.username, 'reply_to': url_for('auth.post_secure_sesd_route', _external=True),
@@ -114,10 +115,3 @@ class MyJSONObjectWriter():
 
     def __repr__(self):
         return self.get_buffer()
-
-
-class Links():
-    def __init__(self):
-        self.index_url = None
-        self.admin_reg = None
-        self.tuq_on_pc = None

@@ -10,6 +10,7 @@ from flask_sqlalchemy import SQLAlchemy
 from models import User, DEFAULT_DISPLAY_PICTURE
 from sqlalchemy.exc import InvalidRequestError, ProgrammingError, IntegrityError
 from threading import Thread
+from datetime import datetime
 import os
 import redis
 import time
@@ -41,19 +42,9 @@ def save_to_database(user_info, db_connector):
                      display_picture=DEFAULT_DISPLAY_PICTURE, username=user_info.get('username'),
                      alias=user_info.get('alias'), password=user_info.get('password'),
                      other_info='Nationality: {}'.format(user_info.get('nationality')))
-    try:
-        db_connector.session.add(this_user)
-        db_connector.session.commit()
-        return True, this_user.id
-    except ProgrammingError as pe:
-        print pe
-    except IntegrityError as ie:
-        print ie
-    except InvalidRequestError as ire:
-        print ire
-    except Exception as all_other_exceptions:
-        print all_other_exceptions
-    return False, False
+    db_connector.session.add(this_user)
+    db_connector.session.commit()
+    return True, this_user.id
 
 
 app = create_app()
@@ -62,23 +53,31 @@ db.init_app(app)
 
 
 def main(logger):
-    time.sleep(20)
+    time.sleep(10)
     with app.app_context():
         while True:
             user_keys = data_cache.hgetall(admin_request_key).keys()
-            logger.write('Keys: {}'.format(str(user_keys)))
+            logger.write('Keys: {}\n'.format(str(user_keys)))
             if len(user_keys) == 0:
                 logger.flush()
                 time.sleep(sleep_time)
             for user_key in user_keys:
                 data = data_cache.hget(admin_request_key, user_key)
                 this_user_info = json.loads(data)
-                operation_result_tuple = save_to_database(this_user_info, db)
-                if not all(operation_result_tuple):
+                try:
+                    result, user_id = save_to_database(this_user_info, db)
+                    email = this_user_info.get('email')
+                    phone_number = this_user_info.get('mobile')
+                    
+                    data_cache.sadd('tuq:usernames', this_user_info.get('username'))
+                    data_cache.sadd('tuq:emails', email)
+                    if phone_number is not None and data_cache.sismember('tuq:phones',phone_number):
+                        data_cache.sadd('tuq:phones', phone_number)
+                    data_cache.hset(pending_email_keys, email,
+                                    '{} %% {}'.format(user_id, this_user_info.get('fullname')))
+                except Exception as exc:
+                    logger.write('Error ocurred[{}]: {}\n'.format(datetime.utcnow(),str(exc)))
                     data_cache.hset(failures_key, user_key, data)
-                else:  # succeeded, queue it up for the next pending emails
-                    data_cache.hset(pending_email_keys, this_user_info.get('email'),
-                                    '{} %% {}'.format(operation_result_tuple[1], this_user_info.get('fullname')))
                 data_cache.hdel(admin_request_key, user_key)
 
 
@@ -88,4 +87,4 @@ new_thread.setDaemon(True)
 new_thread.start()
 
 if __name__ == '__main__':
-    app.run()
+    app.run(debug=True)

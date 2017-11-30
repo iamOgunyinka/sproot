@@ -58,7 +58,7 @@ def mark_paper(course_data, user_solution_array):
     for i in range(0, arity):
         if int(actual_solution_data[i]) == int(user_solution_array[i]):
             score += 1
-    return score
+    return score, arity
 
 
 app = create_app()
@@ -87,10 +87,10 @@ def main(logger):
 
                 try:
                     course_data = grab_course_data(course_id, db)
-                    score = mark_paper(course_data, user_solution_object)
+                    score, total = mark_paper(course_data, user_solution_object)
                     exam_taken = ExamTaken(course_id=course_id, participant_id=user_id,
                                            date_taken=date_taken, other_data=user_answers_string,
-                                           score=score, course_owner=owner_id)
+                                           score=score, course_owner=owner_id, total_score=total)
                     db.session.add(exam_taken)
                     db.session.commit()
                 except Exception as exc:

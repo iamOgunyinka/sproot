@@ -15,7 +15,7 @@ import os, redis, time, json
 
 cache_pass,port_number=os.environ.get('redis_pass'),int(os.environ.get('redis_port'))
 data_cache = redis.StrictRedis(password=cache_pass,port=port_number)
-sleep_time = 60 * 60# 60 every hour
+sleep_time = 60 * 10# every 10 minutes
 
 failed_confirmation_emails = 'tuq:failed_confirmation_emails'
 pending_confirmation_emails = 'tuq:pending_confirmation_emails'

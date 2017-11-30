@@ -29,7 +29,7 @@ class User(db.Model, UserMixin):
     alias = db.Column(db.String( 128 ), unique = False, nullable = True, index = False)
     password_hash = db.Column(db.String(128), index=True, nullable=True)
     role = db.Column(db.Integer, nullable=False)
-    phone_number = db.Column( db.String(128), index=True, nullable=False, unique=True)
+    phone_number = db.Column( db.String(64), nullable=True, unique=False)
     address = db.Column(db.Text, nullable = False)
     other_info = db.Column(db.Text, nullable = True)
     display_picture = db.Column(db.Text, nullable = False)
@@ -58,12 +58,12 @@ class User(db.Model, UserMixin):
         return check_password_hash(self.password_hash, passwd)
 
     def __repr__(self):
-        return '<User %r>' % self.username
+        return '<User %r>' % self.matric_staff_number
     
     @staticmethod
     def generate_confirmation_token( email, user_id, expiry ):
         s = TJsonSerializer( os.environ.get( 'SECRET_KEY' ), expires_in = expiry )
-        return s.dumps({'endUsers': str(email), 'id': user_id })
+        return s.dumps({'endUsers': str( email ), 'id': user_id })
     
     @staticmethod
     def get_data(expiry, token):
@@ -92,10 +92,9 @@ class User(db.Model, UserMixin):
             return None
 
         user.is_confirmed = True
-        db.session.add(user)
+        db.session.add( user )
         db.session.commit()
         return user
-
 
 class AnonymousUser( AnonymousUserMixin ):
     @property
@@ -182,8 +181,8 @@ class ExamTaken(db.Model):
 
 
     def __repr__(self):
-        return '<ExamTaken: User-ID = {user_id}, Course Owner: {owner}>'\
-            .format(number=self.participant_id, code=self.course_owner)
+        return '<ExamTaken Matriculation number = {number}, Course Code: {code}>'\
+            .format(number=self.matric_number, code=self.course_code)
 
 
 @login_manager.user_loader

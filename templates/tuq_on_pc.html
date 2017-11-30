@@ -1,0 +1,117 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+  <title>Tuq, On PC</title>
+  <meta name="description" content="website description" />
+  <meta name="keywords" content="website keywords, website keywords" />
+  <meta http-equiv="content-type" content="text/html; charset=windows-1252" />
+  <link rel="stylesheet" type="text/css" href="{{ url_for( 'static', filename = 'style/style.css' ) }}" title="style" />
+</head>
+
+<body>
+  <div id="main">
+    <div id="header">
+      <div id="logo">
+        <div id="logo_text">
+          <!-- class="logo_colour", allows you to change the colour of the text -->
+          <h1><a href="index.html">Tuq<span class="logo_colour">on the Go</span></a></h1>
+          <h2>The Universal Quiz App</h2>
+        </div>
+      </div>
+      <div id="menubar">
+        <ul id="menu">
+          <!-- put class="selected" in the li tag for the selected page - to highlight which page you're on -->
+          <li ><a href="{{links.index_url}}">Home</a></li>
+          <li><a href="{{links.admin_reg}}">Registration</a></li>
+          <li class="selected"><a href="{{links.tuq_on_pc}}">Tuq On PC</a></li>
+          <li><a href="#">Releases</a></li>
+          <li><a href="#">Contact Us</a></li>
+        </ul>
+      </div>
+    </div>
+    <div id="site_content">
+      <div class="sidebar">
+        <!-- insert your sidebar items here -->
+        <h3>Latest News</h3>
+        <h4>New Products Launched</h4>
+        <h5>November 27, 2017</h5>
+        <p>2017 sees the redesign of two of our products. Take a look around.<br /><a href="releases.html">Read more</a></p>
+        <p></p>
+        <!--
+        <h4>New Website Launched</h4>
+        <h5>January 1st, 2010</h5>
+        <p>2010 sees the redesign of our website. Take a look around and let us know what you think.<br /><a href="#">Read more</a></p>
+        <h3>Useful Links</h3>
+        <ul>
+          <li><a href="#">link 1</a></li>
+          <li><a href="#">link 2</a></li>
+          <li><a href="#">link 3</a></li>
+          <li><a href="#">link 4</a></li>
+        </ul>
+        -->
+        <h3>Search</h3>
+        <form method="post" action="#" id="search_form">
+          <p>
+            <input class="search" type="text" name="search_field" value="Enter keywords....." />
+            <input name="search" type="image" style="border: 0; margin: 0 0 -9px 5px;" 
+                src="{{ url_for( 'static', filename = 'style/search.png' ) }}" alt="Search" title="Search" />
+          </p>
+        </form>
+      </div>
+      <div id="content">
+        <!-- insert the page content here -->
+        <h1> The Way </h1>
+        <p> TuqOnThePC is used exclusively by Tuq Android App for uploading Q&amp;A to the web. It is as simple as it sounds. </p>
+        <ul>
+          <li>Register as an administrator <a href="{{links.admin_reg}}">here</a>.</li>
+          <li>Download and install the software <a href="https://sproot.xyz/public/downloads/tuq_on_pc_setup.exe">here</a>.</li>
+          <li>On first install, it asks you for an <i>endpoint</i>, when prompted, enter <i>{{main_link}}</i>, choose "OK" and wait a 
+          couple seconds while your software is setup.</li>
+          <li>If your account has been activated, you may login by selecting Menu >> Login.</li>
+          <li>After a successful login, you can perform other administrative tasks.</li>
+        </ul>
+        <h2> What is a repository? </h1>
+        <p>
+            Think of this as a folder that house files, as many files as you can think. OR. Think of it as a Class of Computer Science
+            in a <i>2015/2016 academic session</i>, you then have a number of courses taken that session. That academic session is a 
+            repository/folder and the courses taken are the files in that folder.
+        </p>
+        <h3>How do I upload a question script?</h3>
+        <p>
+            These are the basic steps to take:
+        </p>
+        <ul>
+            <li>Select <i>Create new course</i> from the <i>Questions</i> menu.</li>
+            <li>You're presented with a window that has two tabs, fill in the columns in the "Settings" tab.</li>
+            <li>Add each questions from the <i>List of questions</i> tab by clicking on "Add new"</li>
+            <li>On the "Add new" question window, the field that says "Question" is where you'll ask your question like: <br>
+                <i>What part is labelled 'A' in the image below?</i><br><br>
+            </li>
+            <li>The options field are multiple choice options, type each options and select "Add". The minimum is 3 and the maximum is 4.</li>
+            <li>When you wish to change an option, simply double click on it, Clear the field and select "OK" to <b>delete</b> that option.</li>
+            <li>Simply double click on it, change the field to whatever you want and select "OK" to <b>update</b> that option.</li>
+            <li>Choose the correct option in the "Answer" drop down menu, so that the server can help identify the right option during grading.</li>
+            <li>To use an image in a specific question, select the "Use image" option( 100KB max. ) or "Use text file" to upload a TXT file.</li>
+            <li>Repeat this option until you're done.</li>
+            <li>Upload immediately.</li>
+        </ul>
+        <h3> How do I get a link to my questions? </h3>
+        <p>
+            From the menu page, scroll to "Repositories" and then choose "List my repositories". It will list all the links to
+            your repository.
+        </p>
+        <h3>How do I report a glitch, complain or make contributions?</h3>
+        <p>Mail me directly. ogunyinkajoshua@yahoo.com</p>
+        <p><big>Bye for now.</big></p>
+      </div>
+    </div>
+    <div id="content_footer"></div>
+    <div id="footer">
+      Copyright 2017 | <a href="http://validator.w3.org/check?uri=referer">HTML5</a> | 
+      <a href="http://jigsaw.w3.org/css-validator/check/referer">CSS</a> | 
+      <a href="http://www.html5webtemplates.co.uk">HTML5 Web Templates</a>
+    </div>
+  </div>
+</body>
+</html>
