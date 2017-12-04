@@ -1,8 +1,8 @@
 {% import "bootstrap/wtf.html" as wtf %}
 {% extends "base.html" %}
-  
+
 {% block title %}
-<title>Submission</title>
+<title>Administrator's Registration</title>
 {% endblock title %}
 
 {% block selected_block %}
@@ -12,21 +12,17 @@
   <li><a href="#">Releases</a></li>
   <li><a href="#">Contact Us</a></li>
 {% endblock selected_block %}
+
 {% block content %}
+
 <div class="container">
-   {% for message in get_flashed_messages() %}
-   <div class="alert alert-warning">
-       <button type="button" class="close" data-dismiss="alert">&times;</button>
-       {{ message }}
-   </div>
-   {% endfor %}
-   <div class="row">
+   <div class="form_settings">
        <div class="col-md-8">
            <div class="alignleft">
-               Your request as an administrator has been received. A confirmation message has been sent to your email.
+               <h2 class="aligncenter"> {{message}}</h2>
+               <p>Your request as an administrator has been received. A confirmation message has been sent to your email.</p>
            </div>
        </div>
     </div>
 </div>
 {% endblock content %}
-

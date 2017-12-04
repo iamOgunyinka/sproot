@@ -22,7 +22,7 @@ data_cache = redis.StrictRedis(password=cache_pass, port=port_number)
 sleep_time = 60
 pending_paper_key = 'tuq:pending_papers'
 error_marking_key = 'tuq:error_unmarked_papers'
-
+courses_taken = 'tuq:all_course_rank'
 
 def create_app():
     application = Flask(__name__)
@@ -93,6 +93,7 @@ def main(logger):
                                            score=score, course_owner=owner_id, total_score=total)
                     db.session.add(exam_taken)
                     db.session.commit()
+                    data_cache.hincrby(courses_taken, course_id, 1)
                 except Exception as exc:
                     logger.write('{}: Error({}): {}\n'.format(datetime.utcnow(), user_paper, str(exc)))
                     data_cache.hset(error_marking_key, user_paper, user_data_string)

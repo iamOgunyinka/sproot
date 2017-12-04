@@ -174,7 +174,8 @@ class ExamTaken(db.Model):
     id = db.Column(db.Integer, primary_key=True, index = True)
     course_owner = db.Column(db.Integer, index=False, nullable=False, unique=False)
     course_id = db.Column(db.Integer, nullable=False)
-    participant_id = db.Column(db.Integer, index = True, nullable = False)
+    participant_id = db.Column(db.Integer, db.ForeignKey('users.id'), index=True, nullable=False)
+    #~ participant_id = db.Column(db.Integer, index = True, nullable=False)
     date_taken = db.Column(db.DateTime, nullable=False)
     other_data = db.Column(db.Text)
     score = db.Column(db.Integer, nullable=False)
@@ -183,7 +184,7 @@ class ExamTaken(db.Model):
 
     def __repr__(self):
         return '<ExamTaken: User-ID = {user_id}, Course Owner: {owner}>'\
-            .format(number=self.participant_id, code=self.course_owner)
+            .format(user_id=self.participant_id, owner=self.course_owner)
 
 
 @login_manager.user_loader
