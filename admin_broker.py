@@ -41,6 +41,7 @@ def save_to_database(user_info, db_connector):
                      is_active_premium=False,is_confirmed=False, role=User.ADMINISTRATOR,
                      display_picture=DEFAULT_DISPLAY_PICTURE, username=user_info.get('username'),
                      alias=user_info.get('alias'), password=user_info.get('password'),
+                     date_of_registration = str(datetime.utcnow()),
                      other_info='Nationality: {}'.format(user_info.get('nationality')))
     db_connector.session.add(this_user)
     db_connector.session.commit()

@@ -29,11 +29,12 @@ class User(db.Model, UserMixin):
     alias = db.Column(db.String( 128 ), unique = False, nullable = True, index = False)
     password_hash = db.Column(db.String(128), index=True, nullable=True)
     role = db.Column(db.Integer, nullable=False)
-    phone_number = db.Column( db.String(128), index=True, nullable=False, unique=True)
+    phone_number = db.Column( db.String(128), index=True, nullable=True)
     address = db.Column(db.Text, nullable = False)
     other_info = db.Column(db.Text, nullable = True)
     display_picture = db.Column(db.Text, nullable = False)
     is_active_premium = db.Column(db.Boolean, index = True)
+    date_of_registration = db.Column(db.String(128), nullable=False)
     is_confirmed = db.Column(db.Boolean, default=False)
     payment_info = db.relationship('PaymentInformation', backref='premium_details')
     repositories = db.relationship('Repository', backref='user_repo')
@@ -122,7 +123,7 @@ class Repository( db.Model ):
     owner_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     
     def __repr__(self):
-        return '<Repository {name}, {id}>'.format(name=self.repo_name,id=self.id)
+        return '<Repository {name}, {ID}>'.format(name=self.repo_name,ID=self.id)
 
 
 class Course(db.Model):
@@ -139,6 +140,7 @@ class Course(db.Model):
     expires_on = db.Column( db.Date, nullable = True )
     duration_in_minutes = db.Column(db.Integer, nullable=False)
     randomize_questions = db.Column( db.Boolean, nullable = False )
+    logo_location = db.Column(db.String(128), nullable=False)
     answers_approach = db.Column( db.SmallInteger, nullable = False )
     repo_id = db.Column(db.Integer, db.ForeignKey('repositories.id'))
     
@@ -189,4 +191,5 @@ class ExamTaken(db.Model):
 
 @login_manager.user_loader
 def load_user( user_id ):
-    return User.query.get( int( user_id ) )
+    user = User.query.get( int( user_id ) )
+    return user if (user != None and user.is_confirmed) else None

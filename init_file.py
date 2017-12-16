@@ -26,23 +26,23 @@ def create_app():
     # app.config['UPLOADS_DEFAULT_DEST'] = os.environ.get('UPLOAD_DIR')
     app.config['UPLOADS_DEFAULT_URL'] = os.environ.get('GENERAL_UPLOAD_URL')
 
-    moment.init_app( app )
+    moment.init_app(app)
     db.init_app(app)
     bootstrap.init_app(app)
-    csrf.init_app( app )
+    csrf.init_app(app)
     
     from models import login_manager
-    login_manager.init_app( app )
+    login_manager.init_app(app)
     
     from views import main, auth, web
-    from views import public_photos, public_raw_files
+    from views import public_photos, public_raw_files, premium_photos, premium_raw_files
     app.register_blueprint(main,url_prefix='/tuq')
     app.register_blueprint(auth, url_prefix='/tuq/auth')
     app.register_blueprint(web)
     
     csrf.exempt(main)
     csrf.exempt(auth)
-    configure_uploads( app, (public_photos,public_raw_files)) #configure photos and raw_files
+    configure_uploads(app, (public_photos, public_raw_files, premium_photos, premium_raw_files)) #configure photos and raw_files
     patch_request_class(app, size=1024*100) #100KB Max size
     
     return app

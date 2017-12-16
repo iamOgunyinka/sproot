@@ -66,7 +66,7 @@ def main():
     time.sleep( 5 )
     with app.app_context():
         while(True):
-            mail_receivers = data_cache.hgetall(pending_confirmation_emails).keys()
+            mail_receivers = data_cache.hkeys(pending_confirmation_emails)
             if len(mail_receivers) == 0:
                 time.sleep(sleep_time)
             for mail_receiver in mail_receivers:

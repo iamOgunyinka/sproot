@@ -70,7 +70,7 @@ def main(logger):
     time.sleep(10)
     with app.app_context():
         while True:
-            paper_keys = data_cache.hgetall(pending_paper_key).keys()
+            paper_keys = data_cache.hkeys(pending_paper_key)
             if len(paper_keys) == 0:
                 logger.flush()
                 time.sleep(sleep_time)
@@ -93,7 +93,7 @@ def main(logger):
                                            score=score, course_owner=owner_id, total_score=total)
                     db.session.add(exam_taken)
                     db.session.commit()
-                    data_cache.hincrby(courses_taken, course_id, 1)
+                    data_cache.zincrby(courses_taken, course_id, 1)
                 except Exception as exc:
                     logger.write('{}: Error({}): {}\n'.format(datetime.utcnow(), user_paper, str(exc)))
                     data_cache.hset(error_marking_key, user_paper, user_data_string)
