@@ -11,7 +11,7 @@ from sqlalchemy.exc import InvalidRequestError
 from models import db, User, Course, ExamTaken, Department, Repository, DEFAULT_DISPLAY_PICTURE
 from resources import urlify, get_data, respond_back, jsonify_courses, administrator_required, Links, coursify
 from resources import ERROR, SUCCESS, UPLOAD_DIR, list_courses_data, MyJSONObjectWriter, EXPIRY_INTERVAL
-from resources import send_confirmation_message, submit_paper_for_marking, url_for, well_known_courses
+from resources import send_confirmation_message, submit_paper_for_marking, url_for, well_known_courses, jsonify_departments
 from forms import data_cache, AdminRequestForm
 from random import randint
 from flask_login import login_required, login_user, current_user
@@ -61,16 +61,13 @@ def rank_courses_result(courses):
     data = []
     # courses = json.loads(courses)
     for course in courses:
+        if course is None: continue
         course = json.loads(course)
         if course is None: continue
         course_id = long(course.get('id'))
         data.append({
-            'paper_name': course.get('name'),
-            'id': Course.generate_course_token(course_id,EXPIRY_INTERVAL*2),
-            'owner': course.get('owner'), 'icon': course.get('icon'),
-            'reply_to': url_for('auth.post_secure_sesd_route', _external=True),
-            'url': url_for('auth.get_paper_route', url=coursify(course_id, course.get('question')),
-                           _external=True)
+            'paper_name': course.get('name'), 'icon': course.get('icon'), 'owner': course.get('owner_username'),
+            'id': Course.generate_course_token(course_id, EXPIRY_INTERVAL*2)
         })
     return respond_back(SUCCESS, data)
 
@@ -108,9 +105,12 @@ def main_route():
 
 
 @auth.route('/get_endpoints')
+@login_required
 def get_endpoint_route():
-    endpoints = { 'result': url_for('auth.get_result_route', _external=True ),
-                  'ranking': url_for('auth.most_ranked_courses_route', _external=True)}
+    endpoints = { 'result': url_for('auth.get_result_route', _external=True),
+                  'ranking': url_for('auth.most_ranked_courses_route', _external=True),
+                  'course_info': url_for('auth.course_info_route', _external=True)
+                }
     return success_response(endpoints)
 
 
@@ -221,7 +221,7 @@ def post_secure_sesd_route():
         course_taken = db.session.query(ExamTaken).filter_by(course_id=course_id,
                                 participant_id=current_user.id).first()
         if course_taken is not None:
-            return error_response('You have already taken this examination')
+            return error_response('you have already taken this examination')
         # needed to verify JSON object's correctness for the answer
         answer_object = MyJSONObjectWriter()
         json.dump(answer_pair, answer_object, skipkeys=True, indent=2, separators=(',', ': '))
@@ -343,17 +343,19 @@ def get_result_route():
                 print 'We have an issue with {}'.format(result.course_id)
                 continue
             #  otherwise cache it
+            owner = db.session.query(User).filter_by(id=result.course_owner).first()
             course_cache = {'name': course_info.name, 'id': course_info.id,
-                            'owner': course_info.lecturer_in_charge,
-                            'question': course_info.quiz_filename,
-                            'code': course_info.code, 'solution': course_info.solution_filename}
+                            'owner': course_info.lecturer_in_charge, 'owner_username': owner.username,
+                            'question': course_info.quiz_filename, 'code': course_info.code, 
+                            'solution': course_info.solution_filename, 'icon': course_info.logo_location}
+            print course_cache
             data_cache.hset(well_known_courses,result.course_id, json.dumps(course_cache))
             course_info_obj = course_cache  # no need to recheck the data_cache, just use the data
         if course_info_obj is None:  # if it has not been loaded yet, use the data obtained
             course_info_obj = json.loads(course_info)
         data.append({'name': course_info_obj['name'], 'score': result.score, 'date': result.date_taken,
-                     'total': result.total_score,
-                     'code': course_info_obj['code'], 'owner': course_info_obj['owner']})
+                     'total': result.total_score, 'code': course_info_obj['code'], 
+                     'owner': course_info_obj['owner']})
     return success_response(data)
 
 
@@ -543,7 +545,7 @@ def admin_add_course_route():
         db.session.commit()
         course_cache = {'name': course.name, 'id': course.id, 'owner': course.lecturer_in_charge,
                         'code': course.code, 'solution': course.solution_filename,
-                        'icon': course.logo_location,
+                        'icon': course.logo_location, 'owner_username': current_user.username,
                         'question': course.quiz_filename}
         data_cache.hset(well_known_courses, course.id, json.dumps(course_cache))
         return success_response('New course added successfully')
@@ -634,6 +636,27 @@ def most_ranked_courses_route():
         return error_response('Unable to service request')
     courses = data_cache.hmget(well_known_courses, most_ranked)
     return rank_courses_result(courses)
+
+
+@auth.route('/course_info')
+@login_required
+def course_info_route():
+    course_token = request.args.get('course_token')
+    course_owner = request.args.get('owner')
+    course_id = Course.get_course_id(course_token, EXPIRY_INTERVAL*2)
+    if not all((course_id, course_owner, len(course_owner) > 0 )):
+        return error_response('Invalid course specified')
+    course = db.session.query(Course).filter_by(id=long(course_id)).first()
+    if course is None:
+        return error_response('No course with that ID exists')
+    course_detail = {'paper_name': course.name, 'paper_code': course_token, 'icon': course.logo_location,
+            'duration': course.duration_in_minutes, 'instructor': course.lecturer_in_charge,
+            'departments': jsonify_departments(course.departments), 'randomize': course.randomize_questions,
+            'owner': course_owner, 'reply_to': url_for('auth.post_secure_sesd_route', _external=True),
+            'url': url_for('auth.get_paper_route', url=coursify(course.id, course.quiz_filename),
+                _external=True)
+    }
+    return success_response(course_detail)
 
 
 @auth.route('/delete_exam_info')

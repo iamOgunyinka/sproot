@@ -65,7 +65,8 @@ def coursify(course_id, location):
 def jsonify_departments(departments):
     list_of_department = []
     for department in departments:
-        list_of_department.append(department.name)
+        if len(department.name) != 0:
+            list_of_department.append(department.name)
     return list_of_department
 
 
@@ -75,10 +76,10 @@ def list_courses_data(owner, list_of_courses):
         my_list.append(
             {'paper_name': course.name, 'paper_code': Course.generate_course_token(course.id,EXPIRY_INTERVAL * 2), 
             'duration': course.duration_in_minutes, 'instructor': course.lecturer_in_charge,
-            'departments': jsonify_departments(course.departments), 'randomize': course.randomize_questions,
-            'owner': owner.username, 'reply_to': url_for('auth.post_secure_sesd_route', _external=True),
-            'url': url_for('auth.get_paper_route', url=coursify(course.id, course.quiz_filename),
-                _external=True)})
+            'icon': course.logo_location, 'departments': jsonify_departments(course.departments),
+            'randomize': course.randomize_questions, 'owner': owner.username,
+            'reply_to': url_for('auth.post_secure_sesd_route', _external=True),
+            'url': url_for('auth.get_paper_route', url=coursify(course.id, course.quiz_filename), _external=True)})
     return my_list
 
 

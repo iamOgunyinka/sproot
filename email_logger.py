@@ -41,5 +41,6 @@ def initialize_email_receiver(channel):
 if __name__ == '__main__':
     channel = initialize_channel()
     initialize_email_receiver(channel)
+    global my_file
     my_file = open(FILENAME, 'a')
     channel.start_consuming()
