@@ -287,7 +287,7 @@ def signup_route():
             db.session.add(user)
             db.session.commit()
         except InvalidRequestError as invalid_request_err:
-            print invalid_request_err
+            print(invalid_request_err)
             return error_response('User detail already exist')
         data_cache.sadd('tuq:emails',email)
         data_cache.sadd('tuq:usernames',username)
@@ -297,7 +297,7 @@ def signup_route():
         send_confirmation_message(email, user.id, name)
         return respond_back(SUCCESS,'A confirmation message has been sent to your email')
     except Exception as e:
-        print e
+        print(e)
         return error_response('Unable to process signup request')
 
 
@@ -325,7 +325,7 @@ def confirm_user_route():
             send_confirmation_message(user.email, user.id, user.fullname)
             return success_response('A confirmation mail has been sent to your address')
         except Exception as exc:
-            print 'Error: {}'.format(str(exc))
+            print('Error: {}'.format(str(exc)))
             return error_response('Unable to process request')
 
 
@@ -340,7 +340,7 @@ def get_result_route():
         if course_info is None:
             course_info = db.session.query(Course).filter_by(id=result.course_id).first()
             if course_info is None:  # still none?
-                print 'We have an issue with {}'.format(result.course_id)
+                print('We have an issue with {}'.format(result.course_id))
                 continue
             #  otherwise cache it
             owner = db.session.query(User).filter_by(id=result.course_owner).first()
@@ -348,7 +348,7 @@ def get_result_route():
                             'owner': course_info.lecturer_in_charge, 'owner_username': owner.username,
                             'question': course_info.quiz_filename, 'code': course_info.code, 
                             'solution': course_info.solution_filename, 'icon': course_info.logo_location}
-            print course_cache
+            print(course_cache)
             data_cache.hset(well_known_courses,result.course_id, json.dumps(course_cache))
             course_info_obj = course_cache  # no need to recheck the data_cache, just use the data
         if course_info_obj is None:  # if it has not been loaded yet, use the data obtained
@@ -387,7 +387,7 @@ def add_repository_route():
     except BadRequest:
         return error_response('Bad request')
     except Exception as e:
-        print e
+        print(e)
         return error_response('Unable to add repository, check the data and try again')
 
 
@@ -473,7 +473,7 @@ def admin_add_course_route():
         if data is None:
             return error_response('Invalid data')
             
-        print data
+        print(data)
 
         course_name = data.get('name')
         course_code = data.get('course_code')
@@ -552,7 +552,7 @@ def admin_add_course_route():
     except BadRequest:
         return error_response('Bad request')
     except Exception as e:
-        print e
+        print(e)
         return error_response('Could not add the course')
 
 
@@ -589,7 +589,7 @@ def edit_course_route():
             answer_file.close()
             return success_response(data)
         except Exception as exc:
-            print 'Exception caught: {}\n'.format(str(exc))
+            print('Exception caught: {}\n'.format(str(exc)))
             return error_response('Unable to get that information')
     else:
         try:
@@ -598,7 +598,7 @@ def edit_course_route():
         except ValueError as value_error:
             return error_response(str(value_error))
         except Exception as exc:
-            print exc
+            print(exc)
             return error_response('Unable to perform course update')
 
 
@@ -674,10 +674,10 @@ def delete_exam_info_route():
         db.session.commit()
         return success_response('Successful')
     except ValueError as val_error:
-        print 'ValueError: {}\n'.format(str(val_error))
+        print('ValueError: {}\n'.format(str(val_error)))
         return error_response('Invalid reference number')
     except Exception as exc:
-        print 'GeneralException: {}\n'.format(str(exc))
+        print('GeneralException: {}\n'.format(str(exc)))
         return error_response('Unable to process requests')
 
 
@@ -706,10 +706,10 @@ def list_partakers_route():
                                  'date_time': exam.date_taken, 'reference_id': '0x4'+str(exam.id) })
         return success_response(result_data)
     except ValueError as val_error:
-        print 'ValueError: {}\n'.format(str(val_error))
+        print('ValueError: {}\n'.format(str(val_error)))
         return error_response('Invalid parameters')
     except Exception as exc:
-        print 'GeneralException: {}\n'.format(str(exc))
+        print('GeneralException: {}\n'.format(str(exc)))
         return error_response('Unable to process requests')
 
 
@@ -784,7 +784,7 @@ def delete_repository_route():
                 return success_response('Removed successfully')
         return error_response('No such repository found for user')
     except Exception as exc:
-        print exc
+        print(exc)
         return error_response('Unable to process request')
 
 
@@ -812,7 +812,7 @@ def delete_course_route():
         data_cache.rpush(deleted_course_keys, course_id)
         return success_response('Course removed successfully')
     except Exception as e:
-        print e
+        print(e)
         return error_response('Unable to delete course')
 
 

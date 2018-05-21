@@ -55,31 +55,30 @@ db.init_app(app)
 
 def main(logger):
     time.sleep(10)
-    with app.app_context():
-        while True:
-            user_keys = data_cache.hgetall(admin_request_key).keys()
-            logger.write('Keys: {}\n'.format(str(user_keys)))
-            if len(user_keys) == 0:
-                logger.flush()
-                time.sleep(sleep_time)
-            for user_key in user_keys:
-                data = data_cache.hget(admin_request_key, user_key)
-                this_user_info = json.loads(data)
-                try:
+    while True:
+        user_keys = data_cache.hgetall(admin_request_key).keys()
+        logger.write('Keys: {}\n'.format(str(user_keys)))
+        if len(user_keys) == 0:
+            logger.flush()
+            time.sleep(sleep_time)
+        for user_key in user_keys:
+            data = data_cache.hget(admin_request_key, user_key)
+            this_user_info = json.loads(data)
+            try:
+                with app.app_context():
                     result, user_id = save_to_database(this_user_info, db)
                     email = this_user_info.get('email')
                     phone_number = this_user_info.get('mobile')
-                    
                     data_cache.sadd('tuq:usernames', this_user_info.get('username'))
                     data_cache.sadd('tuq:emails', email)
                     if phone_number is not None and data_cache.sismember('tuq:phones',phone_number):
                         data_cache.sadd('tuq:phones', phone_number)
-                    data_cache.hset(pending_email_keys, email,
-                                    '{} %% {}'.format(user_id, this_user_info.get('fullname')))
-                except Exception as exc:
-                    logger.write('Error ocurred[{}]: {}\n'.format(datetime.utcnow(),str(exc)))
-                    data_cache.hset(failures_key, user_key, data)
-                data_cache.hdel(admin_request_key, user_key)
+                    data_cache.hset(pending_email_keys, email, 
+                            '{} %% {}'.format(user_id, this_user_info.get('fullname')))
+            except Exception as exc:
+                logger.write('Error ocurred[{}]: {}\n'.format(datetime.utcnow(),str(exc)))
+                data_cache.hset(failures_key, user_key, data)
+            data_cache.hdel(admin_request_key, user_key)
 
 
 event_logger = open('./logs.txt', 'a')
